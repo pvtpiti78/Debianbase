@@ -40,7 +40,7 @@ echo "  ██████╔╝███████╗██████╔╝
 echo "  ╚═════╝ ╚══════╝╚═════╝ ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"
 echo -e "${NC}"
 echo -e "  ${BOLD}Debian Sid — Base Setup${NC}"
-echo -e "  Xanmod nvidia-595-open · Fish · Kitty · Starship · Gaming ENV"
+echo -e "  nvidia-open (CUDA Repo) · Fish · Kitty · Starship · Gaming ENV"
 echo ""
 echo -e "  ${YELLOW}Dieses Script richtet das System neu ein.${NC}"
 echo -e "  ${YELLOW}Drücke ENTER zum Starten oder CTRL+C zum Abbrechen.${NC}"
