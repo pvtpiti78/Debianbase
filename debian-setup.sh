@@ -95,7 +95,9 @@ apt install -y \
     hunspell \
     hunspell-de-de \
     hunspell-en-us \
-    lsb-release
+    lsb-release \
+    firmware-linux \
+    firmware-linux-nonfree
 log "Basis-Pakete installiert"
 
 # ── power-profiles-daemon ─────────────────────────────────────────────────────
