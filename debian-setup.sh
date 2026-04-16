@@ -545,13 +545,18 @@ EOF
 
 systemctl enable --now zramswap
 
-# zswap deaktivieren (kollidiert mit zram)
-if grep -q "zswap.enabled" /etc/default/grub; then
-    sed -i 's/zswap.enabled=[^ ]*/zswap.enabled=0/g' /etc/default/grub
+# zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
+if [ -f /etc/kernel/cmdline ]; then
+    if ! grep -q "zswap.enabled=0" /etc/kernel/cmdline; then
+        sed -i 's/$/ zswap.enabled=0/' /etc/kernel/cmdline
+    fi
 else
-    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 zswap.enabled=0"/' /etc/default/grub
+    echo "zswap.enabled=0" > /etc/kernel/cmdline
 fi
-update-grub
+# Bootloader-Eintrag neu generieren
+if command -v bootctl &>/dev/null; then
+    kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" 2>/dev/null || true
+fi
 log "ZRAM konfiguriert, zswap deaktiviert"
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
