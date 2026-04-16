@@ -123,8 +123,7 @@ log "Xanmod Repo aktiviert"
 info "Nvidia 595 Open (Xanmod) + VAAPI installieren..."
 apt install -y \
     nvidia-driver-595-open \
-    nvidia-vaapi-driver \
-    libva-utils
+    nvidia-vaapi-driver
 log "Nvidia installiert — Reboot erforderlich"
 
 # ── NTSYNC ────────────────────────────────────────────────────────────────────
