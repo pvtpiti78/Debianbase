@@ -341,8 +341,7 @@ apt install -y \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
     gstreamer1.0-vaapi \
-    ffmpeg \
-    libva2
+    ffmpeg
 log "GStreamer + Codecs installiert"
 
 # ── Firefox (aus Debian repo, policies wie Fedora) ────────────────────────────
