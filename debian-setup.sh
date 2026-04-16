@@ -50,8 +50,6 @@ read -r
 info "APT konfigurieren..."
 cat > /etc/apt/apt.conf.d/99custom << 'EOF'
 APT::Get::Assume-Yes "true";
-APT::Install-Recommends "false";
-APT::Install-Suggests "false";
 Acquire::Languages "none";
 EOF
 log "APT konfiguriert"
@@ -603,6 +601,12 @@ log "Vorlagen angelegt"
 info "Berechtigungen Home-Verzeichnis setzen..."
 chown -R "$CURRENT_USER:$CURRENT_USER" "$USER_HOME"
 log "Berechtigungen gesetzt"
+
+# ── Aufräumen ─────────────────────────────────────────────────────────────────
+info "Aufräumen..."
+apt autoremove -y
+apt clean
+log "Aufgeräumt"
 
 # ── Abschluss ─────────────────────────────────────────────────────────────────
 echo ""
