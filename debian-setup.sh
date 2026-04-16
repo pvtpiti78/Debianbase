@@ -114,9 +114,9 @@ log "Kernel Headers installiert"
 
 # ── Nvidia (CUDA Repo) ────────────────────────────────────────────────────────
 info "Nvidia CUDA Repo einrichten..."
-wget -O /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb
-dpkg -i /tmp/cuda-keyring.deb
-rm /tmp/cuda-keyring.deb
+wget -P /tmp https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb
+dpkg -i /tmp/cuda-keyring_1.1-1_all.deb
+rm /tmp/cuda-keyring_1.1-1_all.deb
 apt update
 log "CUDA Repo aktiviert"
 
