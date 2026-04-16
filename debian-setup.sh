@@ -112,17 +112,17 @@ apt install -y \
     linux-headers-amd64
 log "Kernel Headers installiert"
 
-# ── Xanmod Repo + Nvidia 595 ──────────────────────────────────────────────────
-info "Xanmod Repo einrichten..."
-wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -vo /etc/apt/keyrings/xanmod-archive-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org $(lsb_release -sc) main non-free" \
-    | tee /etc/apt/sources.list.d/xanmod-release.list
+# ── Nvidia (CUDA Repo) ────────────────────────────────────────────────────────
+info "Nvidia CUDA Repo einrichten..."
+wget -O /tmp/cuda-keyring.deb https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb
+dpkg -i /tmp/cuda-keyring.deb
+rm /tmp/cuda-keyring.deb
 apt update
-log "Xanmod Repo aktiviert"
+log "CUDA Repo aktiviert"
 
-info "Nvidia 595 Open (Xanmod) + VAAPI installieren..."
+info "Nvidia Open + VAAPI installieren..."
 apt install -y \
-    nvidia-driver-595-open \
+    nvidia-open \
     nvidia-vaapi-driver
 log "Nvidia installiert — Reboot erforderlich"
 
