@@ -568,8 +568,14 @@ log "sysctl konfiguriert"
 # ── Tastatur auf Deutsch ──────────────────────────────────────────────────────
 info "Tastaturlayout auf Deutsch setzen..."
 apt install -y console-setup
-localectl set-keymap de
-localectl set-x11-keymap de
+cat > /etc/default/keyboard << 'EOF'
+XKBMODEL="pc105"
+XKBLAYOUT="de"
+XKBVARIANT=""
+XKBOPTIONS=""
+BACKSPACE="guess"
+EOF
+setupcon --force || true
 log "Tastaturlayout gesetzt"
 
 # ── Vorlagen (Rechtsklick → Neu erstellen) ────────────────────────────────────
