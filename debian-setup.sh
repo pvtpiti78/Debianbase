@@ -531,10 +531,32 @@ MOZ_DISABLE_RDD_SANDBOX=1
 EOF
 log "nvidia.conf ENV erstellt"
 
+# ── ZRAM ──────────────────────────────────────────────────────────────────────
+info "ZRAM konfigurieren..."
+apt install -y zram-tools
+
+cat > /etc/default/zramswap << 'EOF'
+# ZRAM — 15% von 48GB RAM (~7GB)
+ALGO=zstd
+PERCENT=15
+EOF
+
+systemctl enable --now zramswap
+
+# zswap deaktivieren (kollidiert mit zram)
+if grep -q "zswap.enabled" /etc/default/grub; then
+    sed -i 's/zswap.enabled=[^ ]*/zswap.enabled=0/g' /etc/default/grub
+else
+    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 zswap.enabled=0"/' /etc/default/grub
+fi
+update-grub
+log "ZRAM konfiguriert, zswap deaktiviert"
+
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
 info "sysctl vm.max_map_count setzen..."
 cat > /etc/sysctl.d/99-gaming.conf << 'EOF'
 vm.max_map_count=2147483642
+vm.swappiness=10
 EOF
 sysctl --system > /dev/null
 log "sysctl konfiguriert"
