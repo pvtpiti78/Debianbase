@@ -122,6 +122,7 @@ info "Nvidia Open + VAAPI installieren..."
 apt install -y \
     nvidia-open \
     nvidia-vaapi-driver
+update-initramfs -u -k all
 log "Nvidia installiert — Reboot erforderlich"
 
 # ── NTSYNC ────────────────────────────────────────────────────────────────────
@@ -358,58 +359,13 @@ mkdir -p "$FIREFOX_POLICIES_DIR"
 cat > "$FIREFOX_POLICIES_DIR/policies.json" << 'EOF'
 {
   "policies": {
-    "DisableTelemetry": true,
-    "DisableFirefoxStudies": true,
-    "DisableFirefoxAccounts": false,
-    "DisablePocket": true,
-    "DisableFormHistory": false,
-    "DontCheckDefaultBrowser": true,
-    "NoDefaultBookmarks": true,
-    "OverrideFirstRunPage": "",
-    "OverridePostUpdatePage": "",
-
-    "FirefoxHome": {
-      "Search": true,
-      "TopSites": false,
-      "SponsoredTopSites": false,
-      "Highlights": false,
-      "Pocket": false,
-      "SponsoredPocket": false,
-      "Snippets": false,
-      "Locked": false
-    },
-
-    "UserMessaging": {
-      "WhatsNew": false,
-      "ExtensionRecommendations": false,
-      "FeatureRecommendations": false,
-      "UrlbarInterventions": false,
-      "SkipOnboarding": true,
-      "MoreFromMozilla": false,
-      "Locked": false
-    },
-
     "Preferences": {
-      "media.ffmpeg.vaapi.enabled":                        { "Value": true,  "Status": "default" },
-      "media.rdd-ffmpeg.enabled":                          { "Value": true,  "Status": "default" },
-      "media.hardware-video-decoding.force-enabled":       { "Value": true,  "Status": "default" },
-      "widget.dmabuf.force-enabled":                       { "Value": true,  "Status": "default" },
-      "media.av1.enabled":                                 { "Value": true,  "Status": "default" },
-      "media.ffvpx.enabled":                               { "Value": false, "Status": "default" },
-      "gfx.webrender.all":                                 { "Value": true,  "Status": "default" },
-      "widget.use-xdg-desktop-portal.file-picker":         { "Value": 1,     "Status": "default" },
-      "widget.wayland.opaque-region.enabled":              { "Value": false, "Status": "default" },
-      "apz.gtk.kinetic_scroll.enabled":                    { "Value": false, "Status": "default" },
-      "intl.locale.requested":                             { "Value": "de,en-US", "Status": "default" },
-      "browser.newtabpage.activity-stream.feeds.telemetry":{ "Value": false, "Status": "locked" },
-      "browser.newtabpage.activity-stream.telemetry":      { "Value": false, "Status": "locked" },
-      "browser.ping-centre.telemetry":                     { "Value": false, "Status": "locked" },
-      "toolkit.telemetry.unified":                         { "Value": false, "Status": "locked" },
-      "toolkit.telemetry.enabled":                         { "Value": false, "Status": "locked" },
-      "datareporting.healthreport.uploadEnabled":          { "Value": false, "Status": "locked" },
-      "datareporting.policy.dataSubmissionEnabled":        { "Value": false, "Status": "locked" },
-      "browser.crashReports.unsubmittedCheck.autoSubmit2": { "Value": false, "Status": "locked" },
-      "browser.tabs.crashReporting.sendReport":            { "Value": false, "Status": "locked" }
+      "media.ffmpeg.vaapi.enabled":                  { "Value": true, "Status": "default" },
+      "media.rdd-ffmpeg.enabled":                    { "Value": true, "Status": "default" },
+      "media.hardware-video-decoding.force-enabled": { "Value": true, "Status": "default" },
+      "widget.dmabuf.force-enabled":                 { "Value": true, "Status": "default" },
+      "media.av1.enabled":                           { "Value": true, "Status": "default" },
+      "gfx.webrender.all":                           { "Value": true, "Status": "default" }
     }
   }
 }
@@ -543,7 +499,7 @@ systemctl enable --now zramswap
 # zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
 if [ -f /etc/kernel/cmdline ]; then
     if ! grep -q "zswap.enabled=0" /etc/kernel/cmdline; then
-        sed -i 's/$/ zswap.enabled=0/' /etc/kernel/cmdline
+        echo "$(cat /etc/kernel/cmdline) zswap.enabled=0" > /etc/kernel/cmdline
     fi
 else
     echo "zswap.enabled=0" > /etc/kernel/cmdline
@@ -553,6 +509,20 @@ if command -v bootctl &>/dev/null; then
     kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" 2>/dev/null || true
 fi
 log "ZRAM konfiguriert, zswap deaktiviert"
+
+# ── systemd-boot Menü ─────────────────────────────────────────────────────────
+info "systemd-boot Timeout konfigurieren..."
+LOADER_CONF="/boot/efi/loader/loader.conf"
+if [ -d /boot/efi/loader ]; then
+    cat > "$LOADER_CONF" << 'EOF'
+timeout 5
+console-mode auto
+editor yes
+EOF
+    log "systemd-boot Timeout gesetzt (5s)"
+else
+    warn "systemd-boot nicht gefunden — kein EFI oder anderer Bootloader aktiv"
+fi
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
 info "sysctl vm.max_map_count setzen..."
