@@ -127,6 +127,38 @@ EOF
 chown -R "$CURRENT_USER:$CURRENT_USER" "$USER_HOME/.config/fastfetch"
 log "Fastfetch konfiguriert"
 
+# ── Unerwünschte KDE-Pakete entfernen + pinnen ───────────────────────────────
+# plasma-desktop zieht via Recommends einiges mit das wir nicht wollen.
+# Pinning auf -1 verhindert dass sie bei Updates wiederkommen.
+info "Unerwünschte KDE-Pakete entfernen..."
+KDE_UNWANTED=(
+    plasma-discover
+    plasma-discover-common
+    plasma-discover-backend-fwupd
+    kdeconnect
+    kdeconnect-libs
+    qml6-module-org-kde-kdeconnect
+    libkdsoapwsdiscoveryclient0
+    plasma-welcome
+    plasma-firewall
+    plasma-vault
+    plasma-thunderbolt
+    plasma-browser-integration
+)
+
+# Pinning — kommen nie wieder
+cat > /etc/apt/preferences.d/kde-unwanted.pref << 'EOF'
+# Unerwünschte KDE-Pakete — via Recommends reingezogen, nicht benötigt
+Package: plasma-discover plasma-discover-common plasma-discover-backend-fwupd kdeconnect kdeconnect-libs qml6-module-org-kde-kdeconnect libkdsoapwsdiscoveryclient0 plasma-welcome plasma-firewall plasma-vault plasma-thunderbolt plasma-browser-integration
+Pin: release *
+Pin-Priority: -1
+EOF
+
+# Entfernen falls bereits installiert
+apt-mark auto "${KDE_UNWANTED[@]}" 2>/dev/null || true
+apt purge -y "${KDE_UNWANTED[@]}" 2>/dev/null || true
+log "Unerwünschte KDE-Pakete entfernt und gepinnt"
+
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
 apt autoremove -y
