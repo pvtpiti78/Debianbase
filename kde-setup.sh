@@ -144,12 +144,16 @@ KDE_UNWANTED=(
     plasma-vault
     plasma-thunderbolt
     plasma-browser-integration
+    alacritty
+    partitionmanager
+    kwalletmanager
+    spectacle
 )
 
 # Pinning — kommen nie wieder
 cat > /etc/apt/preferences.d/kde-unwanted.pref << 'EOF'
 # Unerwünschte KDE-Pakete — via Recommends reingezogen, nicht benötigt
-Package: plasma-discover plasma-discover-common plasma-discover-backend-fwupd kdeconnect kdeconnect-libs qml6-module-org-kde-kdeconnect libkdsoapwsdiscoveryclient0 plasma-welcome plasma-firewall plasma-vault plasma-thunderbolt plasma-browser-integration
+Package: plasma-discover plasma-discover-common plasma-discover-backend-fwupd kdeconnect kdeconnect-libs qml6-module-org-kde-kdeconnect libkdsoapwsdiscoveryclient0 plasma-welcome plasma-firewall plasma-vault plasma-thunderbolt plasma-browser-integration alacritty partitionmanager kwalletmanager spectacle
 Pin: release *
 Pin-Priority: -1
 EOF
