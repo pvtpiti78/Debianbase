@@ -110,6 +110,14 @@ apt install -y \
     linux-headers-amd64
 log "Kernel Headers installiert"
 
+# ── Nouveau blacklisten ───────────────────────────────────────────────────────
+info "Nouveau blacklisten..."
+cat > /etc/modprobe.d/blacklist-nouveau.conf << 'EOF'
+blacklist nouveau
+options nouveau modeset=0
+EOF
+log "Nouveau geblockt"
+
 # ── Nvidia (CUDA Repo) ────────────────────────────────────────────────────────
 info "Nvidia CUDA Repo einrichten..."
 wget -P /tmp https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb
