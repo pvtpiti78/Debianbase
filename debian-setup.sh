@@ -80,6 +80,7 @@ apt install -y \
     vim \
     nano \
     man-db \
+    speech-dispatcher \
     xdg-utils \
     xdg-user-dirs \
     pipewire \
