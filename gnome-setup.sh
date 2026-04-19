@@ -2,7 +2,7 @@
 # =============================================================================
 # gnome-setup.sh — Debian Sid GNOME Setup
 # =============================================================================
-# Voraussetzung: debian-setup.sh wurde ausgeführt
+# Voraussetzung: debian-setup.sh wurde ausgeführt + Reboot
 # Umfang: Minimales GNOME, GDM, Wayland-only
 # =============================================================================
 
@@ -38,10 +38,24 @@ echo -e "  ${BOLD}Debian Sid — GNOME Setup${NC}"
 echo -e "  Minimal · GDM · Wayland-only"
 echo ""
 warn "Hinweis: GNOME + Nvidia 595 — bekannter Mutter/Cursor-Bug möglich."
-warn "Workaround falls nötig: MUTTER_DEBUG_DISABLE_HW_CURSORS=1 in gaming.conf"
+warn "Workaround falls nötig: MUTTER_DEBUG_DISABLE_HW_CURSORS=1 in nvidia.conf einkommentieren"
 echo ""
 echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
+
+# ── Nvidia DRM Check ──────────────────────────────────────────────────────────
+info "Nvidia DRM modeset prüfen..."
+MODESET=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null || echo "N")
+if [ "$MODESET" != "Y" ]; then
+    warn "nvidia_drm.modeset ist nicht aktiv!"
+    warn "Hast du nach debian-setup.sh neu gestartet?"
+    warn "Fortfahren auf eigene Gefahr — Blackscreen möglich."
+    echo -ne "  ${YELLOW}Trotzdem fortfahren? [j/N]:${NC} "
+    read -r FORCE
+    [[ "$FORCE" != "j" && "$FORCE" != "J" ]] && err "Abgebrochen."
+else
+    log "nvidia_drm.modeset = Y — alles gut"
+fi
 
 # ── GNOME — minimale Pakete ───────────────────────────────────────────────────
 info "GNOME (minimal) installieren..."
@@ -59,7 +73,8 @@ apt install -y \
     gvfs \
     gvfs-backends \
     adwaita-icon-theme \
-    gnome-backgrounds
+    gnome-backgrounds \
+    libnvidia-egl-wayland1
 log "GNOME installiert"
 
 # ── GDM aktivieren ────────────────────────────────────────────────────────────
@@ -69,34 +84,26 @@ systemctl set-default graphical.target
 log "GDM aktiviert"
 
 # ── Wayland für Nvidia explizit erlauben ──────────────────────────────────────
-info "Wayland-only sicherstellen..."
+info "Wayland-only sicherstellen (GDM)..."
 sed -i 's/#WaylandEnable=false/WaylandEnable=true/' /etc/gdm3/daemon.conf 2>/dev/null || true
 log "Wayland konfiguriert"
-
-# ── Nvidia Cursor-Bug Workaround (präventiv, auskommentiert) ──────────────────
-info "Nvidia Cursor-Workaround vorbereiten (deaktiviert)..."
-cat >> /etc/environment.d/gaming.conf << 'EOF'
-
-# GNOME + Nvidia: Cursor/Mouse-Bug Workaround
-# Bei Problemen (Cursor verschwindet, freezes) diese Zeile aktivieren:
-# MUTTER_DEBUG_DISABLE_HW_CURSORS=1
-EOF
-log "Cursor-Workaround dokumentiert (inaktiv)"
 
 # ── GNOME Shell Extensions ────────────────────────────────────────────────────
 info "Extensions installieren..."
 apt install -y \
-    gnome-shell-extension-appindicator \
-    gnome-shell-extension-dashtodock 2>/dev/null || \
+    gnome-shell-extension-appindicator 2>/dev/null || \
     warn "Einige Extensions nicht verfügbar — nach GNOME-Start via Extension Manager installieren"
-log "Extensions installiert"
+# dashtodock separat mit Fallback — Verfügbarkeit in Sid schwankend
+apt install -y gnome-shell-extension-dashtodock 2>/dev/null || \
+    warn "dashtodock nicht verfügbar — nach Start via extensions.gnome.org installieren"
+log "Extensions installiert (soweit verfügbar)"
 
 # ── Flatpak für Resources (System Monitor) ────────────────────────────────────
 info "Flatpak + Resources installieren..."
 apt install -y flatpak
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 flatpak install -y flathub net.nokyan.Resources || \
-    warn "Resources konnte nicht installiert werden — nach Reboot manuell installieren"
+    warn "Resources konnte nicht installiert werden — nach Reboot manuell: flatpak install flathub net.nokyan.Resources"
 log "Flatpak + Resources installiert"
 
 # ── Fastfetch GNOME-Variante ──────────────────────────────────────────────────
@@ -142,5 +149,5 @@ echo ""
 echo -e "  ${CYAN}System neu starten:${NC}  ${BOLD}sudo reboot${NC}"
 echo ""
 echo -e "  ${YELLOW}Falls Cursor-Bug auftritt:${NC}"
-echo -e "  /etc/environment.d/gaming.conf → MUTTER_DEBUG_DISABLE_HW_CURSORS=1 einkommentieren"
+echo -e "  /etc/environment.d/nvidia.conf → MUTTER_DEBUG_DISABLE_HW_CURSORS=1 einkommentieren"
 echo ""

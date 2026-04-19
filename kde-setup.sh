@@ -2,7 +2,7 @@
 # =============================================================================
 # kde-setup.sh — Debian Sid KDE Plasma Setup
 # =============================================================================
-# Voraussetzung: debian-setup.sh wurde ausgeführt
+# Voraussetzung: debian-setup.sh wurde ausgeführt + Reboot
 # Umfang: Minimales KDE Plasma, SDDM, Wayland-only
 # =============================================================================
 
@@ -40,6 +40,20 @@ echo ""
 echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
 
+# ── Nvidia DRM Check ──────────────────────────────────────────────────────────
+info "Nvidia DRM modeset prüfen..."
+MODESET=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null || echo "N")
+if [ "$MODESET" != "Y" ]; then
+    warn "nvidia_drm.modeset ist nicht aktiv!"
+    warn "Hast du nach debian-setup.sh neu gestartet?"
+    warn "Fortfahren auf eigene Gefahr — Blackscreen möglich."
+    echo -ne "  ${YELLOW}Trotzdem fortfahren? [j/N]:${NC} "
+    read -r FORCE
+    [[ "$FORCE" != "j" && "$FORCE" != "J" ]] && err "Abgebrochen."
+else
+    log "nvidia_drm.modeset = Y — alles gut"
+fi
+
 # ── KDE Plasma — minimale Pakete ──────────────────────────────────────────────
 info "KDE Plasma (minimal) installieren..."
 apt install -y \
@@ -58,7 +72,9 @@ apt install -y \
     breeze-icon-theme \
     xdg-desktop-portal-kde \
     gvfs \
-    gvfs-backends
+    gvfs-backends \
+    libnvidia-egl-wayland1 \
+    plasma-systemmonitor
 log "KDE Plasma installiert"
 
 # ── SDDM aktivieren ───────────────────────────────────────────────────────────
@@ -67,15 +83,21 @@ systemctl enable sddm
 systemctl set-default graphical.target
 log "SDDM aktiviert"
 
-# ── Wayland für Nvidia explizit erlauben ──────────────────────────────────────
-info "Wayland sicherstellen..."
+# ── SDDM Wayland konfigurieren ────────────────────────────────────────────────
+# DisplayServer=wayland — SDDM selbst auf Wayland
+# CompositorCommand — KWin als Wayland-Compositor für SDDM-Greeter
+# QT_WAYLAND_SHELL_INTEGRATION — layer-shell für SDDM-Greeter
+info "SDDM Wayland konfigurieren..."
 mkdir -p /etc/sddm.conf.d
 cat > /etc/sddm.conf.d/wayland.conf << 'EOF'
 [General]
 DisplayServer=wayland
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+
+[Wayland]
+CompositorCommand=kwin_wayland --no-lockscreen
 EOF
-log "Wayland konfiguriert"
+log "SDDM Wayland konfiguriert"
 
 # ── Fastfetch KDE-Variante ────────────────────────────────────────────────────
 info "Fastfetch für KDE konfigurieren..."
@@ -118,4 +140,8 @@ echo -e "${BOLD}${GREEN}  KDE Plasma Setup abgeschlossen!${NC}"
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  ${CYAN}System neu starten:${NC}  ${BOLD}sudo reboot${NC}"
+echo ""
+echo -e "  ${CYAN}Nach dem Reboot prüfen:${NC}"
+echo -e "  • DRM aktiv:  ${BOLD}cat /sys/module/nvidia_drm/parameters/modeset${NC}  → Y"
+echo -e "  • fbdev:      ${BOLD}cat /sys/module/nvidia_drm/parameters/fbdev${NC}     → Y"
 echo ""

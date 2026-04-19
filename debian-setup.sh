@@ -3,13 +3,12 @@
 # debian-setup.sh — Debian Sid Base Setup
 # =============================================================================
 # Ausgangslage: Minimale Debian Sid TTY-Installation (mini.iso)
-# Umfang: APT-Tuning, i386, Xanmod Nvidia 595, NTSYNC, Fish, Kitty, Starship,
-#         Fastfetch, Firefox, Steam (via protontricks), gaming.conf, nvidia.conf
+# Umfang: APT-Tuning, i386, Nvidia 595+ Open (CUDA Repo), NTSYNC, Fish,
+#         Kitty, Starship, Fastfetch, Firefox, Steam, gaming.conf, nvidia.conf
 # =============================================================================
 
 set -euo pipefail
 
-# ── Farben ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -22,14 +21,11 @@ info() { echo -e "${CYAN}[→]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 
-# ── Root-Check ────────────────────────────────────────────────────────────────
 [[ $EUID -ne 0 ]] && err "Bitte als root ausführen: sudo bash debian-setup.sh"
 
-# ── User-Variablen ────────────────────────────────────────────────────────────
 CURRENT_USER=${SUDO_USER:-$USER}
 USER_HOME=$(eval echo "~$CURRENT_USER")
 
-# ── Banner ────────────────────────────────────────────────────────────────────
 clear
 echo -e "${BOLD}${CYAN}"
 echo "  ██████╗ ███████╗██████╗ ██╗ █████╗ ███╗   ██╗"
@@ -126,12 +122,31 @@ rm /tmp/cuda-keyring_1.1-1_all.deb
 apt update
 log "CUDA Repo aktiviert"
 
-info "Nvidia Open + VAAPI installieren..."
+info "Nvidia Open + VAAPI + EGL-Wayland installieren..."
 apt install -y \
     nvidia-open \
-    nvidia-vaapi-driver
+    nvidia-vaapi-driver \
+    libnvidia-egl-wayland1
+log "Nvidia installiert"
+
+# ── Nvidia Module — Early Loading (initramfs) ─────────────────────────────────
+# Verhindert Race Condition zwischen DM-Start und nvidia_drm-Laden.
+# Auf Debian wird das nicht automatisch gemacht (kein Downstream-Patch wie bei Arch).
+info "Nvidia Module in initramfs eintragen..."
+cat > /etc/initramfs-tools/conf.d/nvidia-modules.conf << 'EOF'
+# Nvidia Open — Early Loading
+# Verhindert Blackscreen/Race Condition bei KDE/GNOME Wayland + SDDM/GDM
+MODULES_INITRAMFS="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
+EOF
+
+# Alternativ via /etc/initramfs-tools/modules (sicherer, distro-agnostischer Weg)
+grep -qxF 'nvidia' /etc/initramfs-tools/modules || echo 'nvidia' >> /etc/initramfs-tools/modules
+grep -qxF 'nvidia_modeset' /etc/initramfs-tools/modules || echo 'nvidia_modeset' >> /etc/initramfs-tools/modules
+grep -qxF 'nvidia_uvm' /etc/initramfs-tools/modules || echo 'nvidia_uvm' >> /etc/initramfs-tools/modules
+grep -qxF 'nvidia_drm' /etc/initramfs-tools/modules || echo 'nvidia_drm' >> /etc/initramfs-tools/modules
+
 update-initramfs -u -k all
-log "Nvidia installiert — Reboot erforderlich"
+log "Nvidia Early Loading konfiguriert — Reboot erforderlich"
 
 # ── NTSYNC ────────────────────────────────────────────────────────────────────
 info "NTSYNC konfigurieren..."
@@ -350,7 +365,7 @@ apt install -y \
     ffmpeg
 log "GStreamer + Codecs installiert"
 
-# ── Firefox (aus Debian repo, policies wie Fedora) ────────────────────────────
+# ── Systemsprache Deutsch ──────────────────────────────────────────────────────
 info "Systemsprache Deutsch setzen..."
 apt install -y locales
 sed -i 's/# de_DE.UTF-8 UTF-8/de_DE.UTF-8 UTF-8/' /etc/locale.gen
@@ -358,6 +373,7 @@ locale-gen
 update-locale LANG=de_DE.UTF-8
 log "Systemsprache gesetzt"
 
+# ── Firefox ───────────────────────────────────────────────────────────────────
 info "Firefox installieren..."
 apt install -y firefox firefox-l10n-de
 
@@ -367,6 +383,10 @@ mkdir -p "$FIREFOX_POLICIES_DIR"
 cat > "$FIREFOX_POLICIES_DIR/policies.json" << 'EOF'
 {
   "policies": {
+    "DisableTelemetry": true,
+    "DisablePocket": true,
+    "DisableFirefoxStudies": true,
+    "DisableFormHistory": false,
     "Preferences": {
       "media.ffmpeg.vaapi.enabled":                  { "Value": true, "Status": "default" },
       "media.rdd-ffmpeg.enabled":                    { "Value": true, "Status": "default" },
@@ -394,34 +414,48 @@ info "ProtonPlus installieren..."
 sudo -u "$CURRENT_USER" pacstall -I protonplus
 log "ProtonPlus installiert"
 
-# ── Gaming Apps ───────────────────────────────────────────────────────────────
-info "LACT installieren..."
-wget -O /tmp/lact.deb https://github.com/ilya-zlobintsev/LACT/releases/download/v0.8.4/lact-0.8.4-0.amd64.debian-12.deb
+# ── LACT — aktuelle Version von GitHub ───────────────────────────────────────
+info "LACT installieren (latest release)..."
+LACT_LATEST=$(curl -fsSL "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
+    | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/v${LACT_LATEST}/lact-${LACT_LATEST}-0.amd64.debian-12.deb"
+wget -O /tmp/lact.deb "$LACT_URL"
 apt install -y /tmp/lact.deb
 rm /tmp/lact.deb
 systemctl enable --now lactd
-log "LACT installiert"
+log "LACT ${LACT_LATEST} installiert"
 
-info "Faugus Launcher installieren..."
-mkdir -p /tmp/faugus-launcher
-wget -P /tmp/faugus-launcher https://github.com/Faugus/faugus-launcher/releases/download/1.18.2/faugus-launcher_1.18.2-1_all.deb
-apt install -y /tmp/faugus-launcher/*.deb
-rm -rf /tmp/faugus-launcher
-log "Faugus Launcher installiert"
+# ── Faugus Launcher — aktuelle Version von GitHub ─────────────────────────────
+info "Faugus Launcher installieren (latest release)..."
+FAUGUS_LATEST=$(curl -fsSL "https://api.github.com/repos/Faugus/faugus-launcher/releases/latest" \
+    | grep '"tag_name"' | sed 's/.*"\([^"]*\)".*/\1/')
+FAUGUS_URL="https://github.com/Faugus/faugus-launcher/releases/download/${FAUGUS_LATEST}/faugus-launcher_${FAUGUS_LATEST}-1_all.deb"
+wget -O /tmp/faugus.deb "$FAUGUS_URL"
+apt install -y /tmp/faugus.deb
+rm /tmp/faugus.deb
+log "Faugus Launcher ${FAUGUS_LATEST} installiert"
 
-info "Heroic Games Launcher installieren..."
-wget -O /tmp/heroic.deb https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.20.1/Heroic-2.20.1-linux-amd64.deb
+# ── Heroic Games Launcher — aktuelle Version von GitHub ───────────────────────
+info "Heroic Games Launcher installieren (latest release)..."
+HEROIC_LATEST=$(curl -fsSL "https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest" \
+    | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+HEROIC_URL="https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_LATEST}/Heroic-${HEROIC_LATEST}-linux-amd64.deb"
+wget -O /tmp/heroic.deb "$HEROIC_URL"
 apt install -y /tmp/heroic.deb
 rm /tmp/heroic.deb
-log "Heroic Games Launcher installiert"
+log "Heroic Games Launcher ${HEROIC_LATEST} installiert"
 
 # ── nvidia.conf (modprobe) ────────────────────────────────────────────────────
+# Ab Treiber 595 ist modeset=1 driver-seitig default.
+# fbdev=1 ist es noch nicht — explizit setzen für stabilen Framebuffer-Takeover
+# von simpledrm auf Linux 6.11+. Beide Optionen hier explizit zur Klarheit.
 info "nvidia.conf (modprobe) erstellen..."
 cat > /etc/modprobe.d/nvidia.conf << 'EOF'
-# Nvidia — Debian Sid
-options nvidia NVreg_UsePageAttributeTable=1
-options nvidia NVreg_EnablePCIeGen3=1
-options nvidia NVreg_RegistryDwords="PerfLevelSrc=0x2222"
+# Nvidia Open — Debian Sid
+# modeset=1 ist ab Treiber 595 driver-seitig default — hier explizit zur Sicherheit
+# fbdev=1 ist noch nicht default — nötig für stabilen simpledrm-Takeover (Linux 6.11+)
+options nvidia_drm modeset=1
+options nvidia_drm fbdev=1
 EOF
 log "nvidia.conf erstellt"
 
@@ -440,12 +474,16 @@ __GL_SHADER_DISK_CACHE_SIZE=12000000000
 PROTON_ENABLE_NGX_UPDATER=1
 PROTON_ENABLE_WAYLAND=1
 PROTON_ENABLE_NVAPI=1
-PROTON_VKD3D_HEAP=1
 PROTON_USE_NTSYNC=1
 
 ### NTSYNC — kein esync/fsync
 WINEFSYNC=0
 WINEESYNC=0
+
+### VKD3D — Descriptor Heap (neuer Code-Path, benötigt beides zusammen)
+# Nur mit CachyOS Proton / Proton-GE aktiv — Standard-Proton ignoriert das
+PROTON_VKD3D_HEAP=1
+VKD3D_CONFIG=descriptor_heap
 
 ### DLSS SR — Preset Latest, 50% Skalierung
 DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on
@@ -489,6 +527,10 @@ ELECTRON_OZONE_PLATFORM_HINT=auto
 
 # Hardware-Decoding Firefox
 MOZ_DISABLE_RDD_SANDBOX=1
+
+# GNOME + Nvidia: Cursor/Mouse-Bug Workaround
+# Bei Problemen (Cursor verschwindet, Freezes) diese Zeile aktivieren:
+# MUTTER_DEBUG_DISABLE_HW_CURSORS=1
 EOF
 log "nvidia.conf ENV erstellt"
 
@@ -505,18 +547,26 @@ EOF
 systemctl enable --now zramswap
 
 # zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
+info "Kernel cmdline konfigurieren (zswap deaktivieren, Nvidia DRM)..."
+CMDLINE_PARAMS="zswap.enabled=0 nvidia_drm.modeset=1 nvidia_drm.fbdev=1"
 if [ -f /etc/kernel/cmdline ]; then
-    if ! grep -q "zswap.enabled=0" /etc/kernel/cmdline; then
-        echo "$(cat /etc/kernel/cmdline) zswap.enabled=0" > /etc/kernel/cmdline
-    fi
+    CURRENT_CMDLINE=$(cat /etc/kernel/cmdline)
+    NEW_CMDLINE="$CURRENT_CMDLINE"
+    for param in $CMDLINE_PARAMS; do
+        KEY="${param%%=*}"
+        if ! echo "$NEW_CMDLINE" | grep -qE "(^| )${KEY}[= ]"; then
+            NEW_CMDLINE="$NEW_CMDLINE $param"
+        fi
+    done
+    echo "$NEW_CMDLINE" > /etc/kernel/cmdline
 else
-    echo "zswap.enabled=0" > /etc/kernel/cmdline
+    echo "$CMDLINE_PARAMS" > /etc/kernel/cmdline
 fi
-# Bootloader-Eintrag neu generieren
+
 if command -v bootctl &>/dev/null; then
     kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" 2>/dev/null || true
 fi
-log "ZRAM konfiguriert, zswap deaktiviert"
+log "ZRAM konfiguriert, zswap deaktiviert, Nvidia DRM Kernel-Parameter gesetzt"
 
 # ── systemd-boot Menü ─────────────────────────────────────────────────────────
 info "systemd-boot Timeout konfigurieren..."
@@ -586,6 +636,60 @@ apt autoremove -y
 apt clean
 log "Aufgeräumt"
 
+# ── Desktop Environment Auswahl ───────────────────────────────────────────────
+echo ""
+echo -e "${BOLD}${CYAN}════════════════════════════════════════════${NC}"
+echo -e "${BOLD}${CYAN}  Desktop Environment installieren?${NC}"
+echo -e "${BOLD}${CYAN}════════════════════════════════════════════${NC}"
+echo ""
+echo -e "  ${BOLD}[1]${NC}  KDE Plasma  — minimal, SDDM, Wayland"
+echo -e "  ${BOLD}[2]${NC}  GNOME       — minimal, GDM, Wayland"
+echo -e "  ${BOLD}[3]${NC}  COSMIC      — minimal, cosmic-greeter, Wayland"
+echo -e "  ${BOLD}[4]${NC}  Kein DE     — reines TTY-System, manuell weiter"
+echo ""
+echo -ne "  ${YELLOW}Auswahl [1/2/3/4]:${NC} "
+read -r DE_CHOICE
+
+case "$DE_CHOICE" in
+    1)
+        echo ""
+        info "KDE Plasma Setup wird gestartet..."
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -f "$SCRIPT_DIR/kde-setup.sh" ]; then
+            bash "$SCRIPT_DIR/kde-setup.sh"
+        else
+            warn "kde-setup.sh nicht gefunden in $SCRIPT_DIR"
+            warn "Manuell ausführen: bash kde-setup.sh"
+        fi
+        ;;
+    2)
+        echo ""
+        info "GNOME Setup wird gestartet..."
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -f "$SCRIPT_DIR/gnome-setup.sh" ]; then
+            bash "$SCRIPT_DIR/gnome-setup.sh"
+        else
+            warn "gnome-setup.sh nicht gefunden in $SCRIPT_DIR"
+            warn "Manuell ausführen: bash gnome-setup.sh"
+        fi
+        ;;
+    3)
+        echo ""
+        info "COSMIC Setup wird gestartet..."
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -f "$SCRIPT_DIR/cosmic-setup.sh" ]; then
+            bash "$SCRIPT_DIR/cosmic-setup.sh"
+        else
+            warn "cosmic-setup.sh nicht gefunden in $SCRIPT_DIR"
+            warn "Manuell ausführen: bash cosmic-setup.sh"
+        fi
+        ;;
+    4|*)
+        echo ""
+        log "Kein DE installiert — reines TTY-System"
+        ;;
+esac
+
 # ── Abschluss ─────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
@@ -593,10 +697,10 @@ echo -e "${BOLD}${GREEN}  Base-Setup abgeschlossen!${NC}"
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  ${CYAN}Nächste Schritte:${NC}"
-echo -e "  • Neustart:                 ${BOLD}sudo reboot${NC}"
-echo -e "  • Nvidia prüfen:            ${BOLD}nvidia-smi${NC}"
-echo -e "  • NTSYNC prüfen:            ${BOLD}ls /dev/ntsync${NC}"
-echo -e "  • Desktop-Umgebung:         ${BOLD}bash gnome-setup.sh${NC} / ${BOLD}bash kde-setup.sh${NC}"
+echo -e "  • Neustart:       ${BOLD}sudo reboot${NC}"
+echo -e "  • Nvidia prüfen:  ${BOLD}nvidia-smi${NC}"
+echo -e "  • DRM prüfen:     ${BOLD}cat /sys/module/nvidia_drm/parameters/modeset${NC}  → Y"
+echo -e "  • NTSYNC prüfen:  ${BOLD}ls /dev/ntsync${NC}"
 echo ""
 echo -e "  ${YELLOW}Reboot vor DE-Installation — Nvidia-Module müssen geladen sein${NC}"
 echo ""
