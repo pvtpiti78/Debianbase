@@ -636,60 +636,6 @@ apt autoremove -y
 apt clean
 log "Aufgeräumt"
 
-# ── Desktop Environment Auswahl ───────────────────────────────────────────────
-echo ""
-echo -e "${BOLD}${CYAN}════════════════════════════════════════════${NC}"
-echo -e "${BOLD}${CYAN}  Desktop Environment installieren?${NC}"
-echo -e "${BOLD}${CYAN}════════════════════════════════════════════${NC}"
-echo ""
-echo -e "  ${BOLD}[1]${NC}  KDE Plasma  — minimal, SDDM, Wayland"
-echo -e "  ${BOLD}[2]${NC}  GNOME       — minimal, GDM, Wayland"
-echo -e "  ${BOLD}[3]${NC}  COSMIC      — minimal, cosmic-greeter, Wayland"
-echo -e "  ${BOLD}[4]${NC}  Kein DE     — reines TTY-System, manuell weiter"
-echo ""
-echo -ne "  ${YELLOW}Auswahl [1/2/3/4]:${NC} "
-read -r DE_CHOICE
-
-case "$DE_CHOICE" in
-    1)
-        echo ""
-        info "KDE Plasma Setup wird gestartet..."
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        if [ -f "$SCRIPT_DIR/kde-setup.sh" ]; then
-            bash "$SCRIPT_DIR/kde-setup.sh"
-        else
-            warn "kde-setup.sh nicht gefunden in $SCRIPT_DIR"
-            warn "Manuell ausführen: bash kde-setup.sh"
-        fi
-        ;;
-    2)
-        echo ""
-        info "GNOME Setup wird gestartet..."
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        if [ -f "$SCRIPT_DIR/gnome-setup.sh" ]; then
-            bash "$SCRIPT_DIR/gnome-setup.sh"
-        else
-            warn "gnome-setup.sh nicht gefunden in $SCRIPT_DIR"
-            warn "Manuell ausführen: bash gnome-setup.sh"
-        fi
-        ;;
-    3)
-        echo ""
-        info "COSMIC Setup wird gestartet..."
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        if [ -f "$SCRIPT_DIR/cosmic-setup.sh" ]; then
-            bash "$SCRIPT_DIR/cosmic-setup.sh"
-        else
-            warn "cosmic-setup.sh nicht gefunden in $SCRIPT_DIR"
-            warn "Manuell ausführen: bash cosmic-setup.sh"
-        fi
-        ;;
-    4|*)
-        echo ""
-        log "Kein DE installiert — reines TTY-System"
-        ;;
-esac
-
 # ── Abschluss ─────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
@@ -697,10 +643,11 @@ echo -e "${BOLD}${GREEN}  Base-Setup abgeschlossen!${NC}"
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  ${CYAN}Nächste Schritte:${NC}"
-echo -e "  • Neustart:       ${BOLD}sudo reboot${NC}"
-echo -e "  • Nvidia prüfen:  ${BOLD}nvidia-smi${NC}"
-echo -e "  • DRM prüfen:     ${BOLD}cat /sys/module/nvidia_drm/parameters/modeset${NC}  → Y"
-echo -e "  • NTSYNC prüfen:  ${BOLD}ls /dev/ntsync${NC}"
+echo -e "  1.  ${BOLD}sudo reboot${NC}"
+echo -e "  2.  ${BOLD}cd Debianbase && sudo bash install-de.sh${NC}"
 echo ""
-echo -e "  ${YELLOW}Reboot vor DE-Installation — Nvidia-Module müssen geladen sein${NC}"
+echo -e "  ${CYAN}Nach dem Reboot prüfen:${NC}"
+echo -e "  • Nvidia:   ${BOLD}nvidia-smi${NC}"
+echo -e "  • DRM:      ${BOLD}cat /sys/module/nvidia_drm/parameters/modeset${NC}  → Y"
+echo -e "  • NTSYNC:   ${BOLD}ls /dev/ntsync${NC}"
 echo ""

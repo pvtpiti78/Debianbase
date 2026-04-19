@@ -11,21 +11,42 @@ Post-install scripts for Debian Sid — minimal, gaming-ready, Wayland-only.
 
 ## Reihenfolge
 
-### 1. Base Setup
+### 1. Repo klonen
 
 ```bash
-wget https://raw.githubusercontent.com/pvtpiti78/Debianbase/main/debian-setup.sh
-sudo bash debian-setup.sh
+git clone https://github.com/pvtpiti78/Debianbase.git
+cd Debianbase
 ```
 
-Am Ende des Scripts wird gefragt, welche Desktop-Umgebung installiert werden soll.  
-Alle DE-Scripts können auch separat ausgeführt werden — **immer zuerst rebooten**.
+### 2. Base Setup
 
 ```bash
+sudo bash debian-setup.sh
 sudo reboot
 ```
 
-Richtet das komplette System ein:
+### 3. Desktop Environment
+
+```bash
+cd Debianbase
+sudo bash install-de.sh
+```
+
+Interaktive Auswahl zwischen KDE Plasma, GNOME, COSMIC oder reinem TTY-System.
+Die einzelnen DE-Scripts können auch direkt ausgeführt werden.
+
+## Scripts
+
+| Script | Beschreibung |
+|---|---|
+| `debian-setup.sh` | Base Setup — muss zuerst ausgeführt werden |
+| `install-de.sh` | Interaktive DE-Auswahl — nach dem Reboot ausführen |
+| `kde-setup.sh` | Minimales KDE Plasma + SDDM + Wayland |
+| `gnome-setup.sh` | Minimales GNOME + GDM + Wayland |
+| `cosmic-setup.sh` | Minimales COSMIC + cosmic-greeter + Wayland (experimentell) |
+
+## Was debian-setup.sh einrichtet
+
 - APT-Tuning, i386 Multiarch
 - Nvidia Open (CUDA Repo) + nvidia-vaapi-driver + libnvidia-egl-wayland1
 - Nvidia Early Loading in initramfs (verhindert Race Condition bei DM-Start)
@@ -39,34 +60,6 @@ Richtet das komplette System ein:
 - gaming.conf + nvidia.conf (environment.d)
 - ZRAM (15%, zstd), zswap deaktiviert
 - vm.max_map_count, swappiness=10
-
-### 2. Desktop Environment
-
-Wird am Ende von `debian-setup.sh` interaktiv angeboten.  
-Alternativ manuell nach dem Reboot:
-
-```bash
-# KDE Plasma
-wget https://raw.githubusercontent.com/pvtpiti78/Debianbase/main/kde-setup.sh
-sudo bash kde-setup.sh
-
-# GNOME
-wget https://raw.githubusercontent.com/pvtpiti78/Debianbase/main/gnome-setup.sh
-sudo bash gnome-setup.sh
-
-# COSMIC
-wget https://raw.githubusercontent.com/pvtpiti78/Debianbase/main/cosmic-setup.sh
-sudo bash cosmic-setup.sh
-```
-
-## Scripts
-
-| Script | Beschreibung |
-|---|---|
-| `debian-setup.sh` | Base Setup — muss zuerst ausgeführt werden |
-| `kde-setup.sh` | Minimales KDE Plasma + SDDM + Wayland |
-| `gnome-setup.sh` | Minimales GNOME + GDM + Wayland |
-| `cosmic-setup.sh` | Minimales COSMIC + cosmic-greeter + Wayland (experimentell) |
 
 ## Hardware
 
@@ -89,4 +82,4 @@ Optimiert für:
 - **GNOME/Nvidia Cursor-Bug**: Bei Problemen `MUTTER_DEBUG_DISABLE_HW_CURSORS=1` in `/etc/environment.d/nvidia.conf` einkommentieren
 - **COSMIC auf Debian Sid**: Script prüft Paketverfügbarkeit vorab und bricht sauber ab falls Core-Pakete fehlen
 - Nach Base Setup **immer rebooten** bevor ein DE installiert wird — Nvidia-Module müssen geladen sein
-- Alle DE-Scripts prüfen ob `nvidia_drm.modeset` aktiv ist und warnen bei fehlendem Reboot
+- `install-de.sh` prüft ob `nvidia_drm.modeset` aktiv ist und warnt bei fehlendem Reboot
