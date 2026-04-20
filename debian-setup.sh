@@ -406,13 +406,15 @@ info "protontricks installieren (zieht Steam als Abhängigkeit)..."
 apt install -y protontricks
 log "protontricks + Steam installiert"
 
-# ── ProtonPlus (via Pacstall) ─────────────────────────────────────────────────
-info "Pacstall installieren..."
-bash -c "$(wget -q https://pacstall.dev/q/install -O -)"
-log "Pacstall installiert"
 
-info "ProtonPlus installieren..."
-sudo -u "$CURRENT_USER" pacstall -I protonplus
+# ── Flatpak + ProtonPlus ──────────────────────────────────────────────────────
+info "Flatpak installieren..."
+apt install -y flatpak
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+log "Flatpak installiert"
+
+info "ProtonPlus installieren (Flatpak)..."
+flatpak install -y flathub com.vysp3r.ProtonPlus
 log "ProtonPlus installiert"
 
 # ── LACT — aktuelle Version von GitHub ───────────────────────────────────────
@@ -513,7 +515,7 @@ PROTON_ENABLE_HDR=1
 ENABLE_HDR_WSI=1
 
 ### Debug (DLSS + DLSSG Indicator)
-DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS="DLSSIndicator=1024,DLSSGIndicator=2"
+# DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS="DLSSIndicator=1024,DLSSGIndicator=2"
 EOF
 log "gaming.conf erstellt"
 
