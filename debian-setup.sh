@@ -50,16 +50,17 @@ Acquire::Languages "none";
 EOF
 log "APT konfiguriert"
 
-# ── i386 Multiarch aktivieren ─────────────────────────────────────────────────
-info "i386 Multiarch aktivieren..."
-dpkg --add-architecture i386
-log "i386 aktiviert"
-
 # ── System aktualisieren ──────────────────────────────────────────────────────
 info "System aktualisieren..."
 apt update
 apt full-upgrade -y
 log "System aktuell"
+
+# ── i386 Multiarch aktivieren ─────────────────────────────────────────────────
+info "i386 Multiarch aktivieren..."
+dpkg --add-architecture i386
+apt update
+log "i386 aktiviert"
 
 # ── Basis-Pakete ──────────────────────────────────────────────────────────────
 info "Basis-Pakete installieren..."
