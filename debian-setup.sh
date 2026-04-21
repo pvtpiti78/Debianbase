@@ -4,7 +4,7 @@
 # =============================================================================
 # Ausgangslage: Minimale Debian Sid TTY-Installation (mini.iso)
 # Umfang: APT-Tuning, i386, Nvidia 595+ Open (CUDA Repo), NTSYNC, Fish,
-#         Kitty, Starship, Fastfetch, Firefox, Steam, gaming.conf, nvidia.conf
+#         Kitty, Starship, Fastfetch, Firefox, Steam, gaming.conf
 # =============================================================================
 
 set -euo pipefail
@@ -211,24 +211,7 @@ apt install -y \
     libnvidia-egl-wayland1
 log "Nvidia installiert"
 
-# ── Nvidia Module — Early Loading (initramfs) ─────────────────────────────────
-# Verhindert Race Condition zwischen DM-Start und nvidia_drm-Laden.
-# Auf Debian wird das nicht automatisch gemacht (kein Downstream-Patch wie bei Arch).
-info "Nvidia Module in initramfs eintragen..."
-cat > /etc/initramfs-tools/conf.d/nvidia-modules.conf << 'EOF'
-# Nvidia Open — Early Loading
-# Verhindert Blackscreen/Race Condition bei KDE/GNOME Wayland + SDDM/GDM
-MODULES_INITRAMFS="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
-EOF
 
-# Alternativ via /etc/initramfs-tools/modules (sicherer, distro-agnostischer Weg)
-grep -qxF 'nvidia' /etc/initramfs-tools/modules || echo 'nvidia' >> /etc/initramfs-tools/modules
-grep -qxF 'nvidia_modeset' /etc/initramfs-tools/modules || echo 'nvidia_modeset' >> /etc/initramfs-tools/modules
-grep -qxF 'nvidia_uvm' /etc/initramfs-tools/modules || echo 'nvidia_uvm' >> /etc/initramfs-tools/modules
-grep -qxF 'nvidia_drm' /etc/initramfs-tools/modules || echo 'nvidia_drm' >> /etc/initramfs-tools/modules
-
-update-initramfs -u -k all
-log "Nvidia Early Loading konfiguriert — Reboot erforderlich"
 
 # ── NTSYNC ────────────────────────────────────────────────────────────────────
 info "NTSYNC konfigurieren..."
@@ -529,19 +512,6 @@ apt install -y /tmp/heroic.deb
 rm /tmp/heroic.deb
 log "Heroic Games Launcher ${HEROIC_LATEST} installiert"
 
-# ── nvidia.conf (modprobe) ────────────────────────────────────────────────────
-# Ab Treiber 595 ist modeset=1 driver-seitig default.
-# fbdev=1 ist es noch nicht — explizit setzen für stabilen Framebuffer-Takeover
-# von simpledrm auf Linux 6.11+. Beide Optionen hier explizit zur Klarheit.
-info "nvidia.conf (modprobe) erstellen..."
-cat > /etc/modprobe.d/nvidia.conf << 'EOF'
-# Nvidia Open — Debian Sid
-# modeset=1 ist ab Treiber 595 driver-seitig default — hier explizit zur Sicherheit
-# fbdev=1 ist noch nicht default — nötig für stabilen simpledrm-Takeover (Linux 6.11+)
-options nvidia_drm modeset=1
-options nvidia_drm fbdev=1
-EOF
-log "nvidia.conf erstellt"
 
 # ── gaming.conf (Environment Variables) ──────────────────────────────────────
 info "gaming.conf erstellen..."
@@ -600,23 +570,6 @@ ENABLE_HDR_WSI=1
 EOF
 log "gaming.conf erstellt"
 
-# ── nvidia.conf ENV (Wayland/Vulkan) ─────────────────────────────────────────
-info "nvidia.conf ENV erstellen..."
-cat > /etc/environment.d/nvidia.conf << 'EOF'
-GBM_BACKEND=nvidia-drm
-__GLX_VENDOR_LIBRARY_NAME=nvidia
-LIBVA_DRIVER_NAME=nvidia
-NVD_BACKEND=direct
-ELECTRON_OZONE_PLATFORM_HINT=auto
-
-# Hardware-Decoding Firefox
-MOZ_DISABLE_RDD_SANDBOX=1
-
-# GNOME + Nvidia: Cursor/Mouse-Bug Workaround
-# Bei Problemen (Cursor verschwindet, Freezes) diese Zeile aktivieren:
-# MUTTER_DEBUG_DISABLE_HW_CURSORS=1
-EOF
-log "nvidia.conf ENV erstellt"
 
 # ── ZRAM ──────────────────────────────────────────────────────────────────────
 info "ZRAM konfigurieren..."
@@ -632,7 +585,7 @@ systemctl enable --now zramswap
 
 # zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
 info "Kernel cmdline konfigurieren (zswap deaktivieren, Nvidia DRM)..."
-CMDLINE_PARAMS="zswap.enabled=0 nvidia_drm.modeset=1 nvidia_drm.fbdev=1"
+CMDLINE_PARAMS="zswap.enabled=0"
 if [ -f /etc/kernel/cmdline ]; then
     CURRENT_CMDLINE=$(cat /etc/kernel/cmdline)
     NEW_CMDLINE="$CURRENT_CMDLINE"
@@ -732,6 +685,5 @@ echo -e "  2.  ${BOLD}cd Debianbase && sudo bash install-de.sh${NC}"
 echo ""
 echo -e "  ${CYAN}Nach dem Reboot prüfen:${NC}"
 echo -e "  • Nvidia:   ${BOLD}nvidia-smi${NC}"
-echo -e "  • DRM:      ${BOLD}cat /sys/module/nvidia_drm/parameters/modeset${NC}  → Y"
 echo -e "  • NTSYNC:   ${BOLD}ls /dev/ntsync${NC}"
 echo ""
