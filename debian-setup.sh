@@ -484,7 +484,7 @@ log "ProtonPlus installiert"
 # ── LACT — aktuelle Version von GitHub ───────────────────────────────────────
 info "LACT installieren (latest release)..."
 LACT_URL=$(curl -fsSL "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
-    | grep '"browser_download_url"' | grep 'debian-13' | sed 's/.*"\(https[^"]*\)".*/\1/' || true)
+    | grep '"browser_download_url"' | grep 'debian-12' | sed 's/.*"\(https[^"]*\)".*/\1/' || true)
 if [[ -z "$LACT_URL" ]]; then
     warn "LACT: Kein debian-13 Asset gefunden — übersprungen"
 else
