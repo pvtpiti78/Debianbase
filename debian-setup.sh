@@ -484,30 +484,42 @@ log "ProtonPlus installiert"
 # ── LACT — aktuelle Version von GitHub ───────────────────────────────────────
 info "LACT installieren (latest release)..."
 LACT_URL=$(curl -fsSL "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
-    | grep '"browser_download_url"' | grep 'debian-13' | sed 's/.*"\(https[^"]*\)".*/\1/')
-wget -O /tmp/lact.deb "$LACT_URL"
-apt install -y /tmp/lact.deb
-rm /tmp/lact.deb
-systemctl enable --now lactd
-log "LACT installiert"
+    | grep '"browser_download_url"' | grep 'debian-13' | sed 's/.*"\(https[^"]*\)".*/\1/' || true)
+if [[ -z "$LACT_URL" ]]; then
+    warn "LACT: Kein debian-13 Asset gefunden — übersprungen"
+else
+    wget -O /tmp/lact.deb "$LACT_URL"
+    apt install -y /tmp/lact.deb
+    rm /tmp/lact.deb
+    systemctl enable --now lactd
+    log "LACT installiert"
+fi
 
 # ── Faugus Launcher — aktuelle Version von GitHub ─────────────────────────────
 info "Faugus Launcher installieren (latest release)..."
 FAUGUS_URL=$(curl -fsSL "https://api.github.com/repos/Faugus/faugus-launcher/releases/latest" \
-    | grep '"browser_download_url"' | grep '_all.deb' | sed 's/.*"\(https[^"]*\)".*/\1/')
-wget -O /tmp/faugus.deb "$FAUGUS_URL"
-apt install -y /tmp/faugus.deb
-rm /tmp/faugus.deb
-log "Faugus Launcher installiert"
+    | grep '"browser_download_url"' | grep '_all.deb' | sed 's/.*"\(https[^"]*\)".*/\1/' || true)
+if [[ -z "$FAUGUS_URL" ]]; then
+    warn "Faugus: Kein .deb Asset gefunden — übersprungen"
+else
+    wget -O /tmp/faugus.deb "$FAUGUS_URL"
+    apt install -y /tmp/faugus.deb
+    rm /tmp/faugus.deb
+    log "Faugus Launcher installiert"
+fi
 
 # ── Heroic Games Launcher — aktuelle Version von GitHub ───────────────────────
 info "Heroic Games Launcher installieren (latest release)..."
 HEROIC_URL=$(curl -fsSL "https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest" \
-    | grep '"browser_download_url"' | grep 'linux-amd64.deb' | sed 's/.*"\(https[^"]*\)".*/\1/')
-wget -O /tmp/heroic.deb "$HEROIC_URL"
-apt install -y /tmp/heroic.deb
-rm /tmp/heroic.deb
-log "Heroic Games Launcher installiert"
+    | grep '"browser_download_url"' | grep 'linux-amd64.deb' | sed 's/.*"\(https[^"]*\)".*/\1/' || true)
+if [[ -z "$HEROIC_URL" ]]; then
+    warn "Heroic: Kein .deb Asset gefunden — übersprungen"
+else
+    wget -O /tmp/heroic.deb "$HEROIC_URL"
+    apt install -y /tmp/heroic.deb
+    rm /tmp/heroic.deb
+    log "Heroic Games Launcher installiert"
+fi
 
 
 # ── gaming.conf (Environment Variables) ──────────────────────────────────────
