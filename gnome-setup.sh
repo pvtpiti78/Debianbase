@@ -46,9 +46,12 @@ read -r
 
 # ── Experimental Repo — nur für gnome-shell 50 ───────────────────────────────
 info "Experimental Repo einrichten (nur gnome-shell)..."
-cat > /etc/apt/sources.list.d/experimental.list << 'EOF'
+if [ ! -f /etc/apt/sources.list.d/experimental.list ] && \
+   [ ! -f /etc/apt/sources.list.d/experimental.sources ]; then
+    cat > /etc/apt/sources.list.d/experimental.list << 'EOF'
 deb http://deb.debian.org/debian experimental main
 EOF
+fi
 
 cat > /etc/apt/preferences.d/experimental.pref << 'EOF'
 # Experimental generell sperren
