@@ -82,7 +82,6 @@ apt install -y \
     xdg-desktop-portal-gnome \
     gvfs \
     gvfs-backends \
-    gvfs-mtp \
     file-roller \
     adwaita-icon-theme \
     gnome-backgrounds \
