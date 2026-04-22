@@ -44,7 +44,30 @@ echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
 
 
-# ── GNOME — minimale Pakete ───────────────────────────────────────────────────
+# ── Experimental Repo — nur für gnome-shell 50 ───────────────────────────────
+info "Experimental Repo einrichten (nur gnome-shell)..."
+cat > /etc/apt/sources.list.d/experimental.list << 'EOF'
+deb http://deb.debian.org/debian experimental main
+EOF
+
+cat > /etc/apt/preferences.d/experimental.pref << 'EOF'
+# Experimental generell sperren
+Package: *
+Pin: release a=experimental
+Pin-Priority: 1
+
+# Nur gnome-shell aus Experimental erlauben
+Package: gnome-shell
+Pin: release a=experimental
+Pin-Priority: 990
+EOF
+
+apt update
+info "gnome-shell 50 aus Experimental installieren..."
+apt install -t experimental gnome-shell
+log "gnome-shell 50 installiert"
+
+
 info "GNOME (minimal) installieren..."
 apt install -y \
     gnome-shell \
