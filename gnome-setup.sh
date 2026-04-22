@@ -43,21 +43,31 @@ echo ""
 echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
 
-# ── Nvidia DRM Check ──────────────────────────────────────────────────────────
-info "Nvidia DRM modeset prüfen..."
-MODESET=$(cat /sys/module/nvidia_drm/parameters/modeset 2>/dev/null || echo "N")
-if [ "$MODESET" != "Y" ]; then
-    warn "nvidia_drm.modeset ist nicht aktiv!"
-    warn "Hast du nach debian-setup.sh neu gestartet?"
-    warn "Fortfahren auf eigene Gefahr — Blackscreen möglich."
-    echo -ne "  ${YELLOW}Trotzdem fortfahren? [j/N]:${NC} "
-    read -r FORCE
-    [[ "$FORCE" != "j" && "$FORCE" != "J" ]] && err "Abgebrochen."
-else
-    log "nvidia_drm.modeset = Y — alles gut"
-fi
 
-# ── GNOME — minimale Pakete ───────────────────────────────────────────────────
+# ── Experimental Repo — nur für gnome-shell 50 ───────────────────────────────
+info "Experimental Repo einrichten (nur gnome-shell)..."
+cat > /etc/apt/sources.list.d/experimental.list << 'EOF'
+deb http://deb.debian.org/debian experimental main
+EOF
+
+cat > /etc/apt/preferences.d/experimental.pref << 'EOF'
+# Experimental generell sperren
+Package: *
+Pin: release a=experimental
+Pin-Priority: 1
+
+# Nur gnome-shell aus Experimental erlauben
+Package: gnome-shell
+Pin: release a=experimental
+Pin-Priority: 990
+EOF
+
+apt update
+info "gnome-shell 50 aus Experimental installieren..."
+apt install -t experimental gnome-shell
+log "gnome-shell 50 installiert"
+
+
 info "GNOME (minimal) installieren..."
 apt install -y \
     gnome-shell \
@@ -72,6 +82,8 @@ apt install -y \
     xdg-desktop-portal-gnome \
     gvfs \
     gvfs-backends \
+    gvfs-mtp \
+    file-roller \
     adwaita-icon-theme \
     gnome-backgrounds \
     libnvidia-egl-wayland1
