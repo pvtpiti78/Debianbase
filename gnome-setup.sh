@@ -44,30 +44,7 @@ echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
 
 
-# ── Experimental Repo — nur für gnome-shell 50 ───────────────────────────────
-info "Experimental Repo einrichten (nur gnome-shell)..."
-cat > /etc/apt/sources.list.d/experimental.list << 'EOF'
-deb http://deb.debian.org/debian experimental main
-EOF
-
-cat > /etc/apt/preferences.d/experimental.pref << 'EOF'
-# Experimental generell sperren
-Package: *
-Pin: release a=experimental
-Pin-Priority: 1
-
-# Nur gnome-shell aus Experimental erlauben
-Package: gnome-shell
-Pin: release a=experimental
-Pin-Priority: 990
-EOF
-
-apt update
-info "gnome-shell 50 aus Experimental installieren..."
-apt install -t experimental gnome-shell
-log "gnome-shell 50 installiert"
-
-
+# ── GNOME — minimale Pakete ───────────────────────────────────────────────────
 info "GNOME (minimal) installieren..."
 apt install -y \
     gnome-shell \
@@ -76,12 +53,13 @@ apt install -y \
     gnome-text-editor \
     gnome-disk-utility \
     gnome-tweaks \
-    gnome-shell-extension-prefs \
+    gnome-shell-extension-manager \
     nautilus \
     gdm3 \
     xdg-desktop-portal-gnome \
     gvfs \
     gvfs-backends \
+    gvfs-mtp \
     file-roller \
     adwaita-icon-theme \
     gnome-backgrounds \
@@ -102,12 +80,10 @@ log "Wayland konfiguriert"
 # ── GNOME Shell Extensions ────────────────────────────────────────────────────
 info "Extensions installieren..."
 apt install -y \
-    gnome-shell-extension-appindicator 2>/dev/null || \
+    gnome-shell-extension-appindicator \
+    gnome-shell-extension-dash-to-panel || \
     warn "Einige Extensions nicht verfügbar — nach GNOME-Start via Extension Manager installieren"
-# dashtodock separat mit Fallback — Verfügbarkeit in Sid schwankend
-apt install -y gnome-shell-extension-dashtodock 2>/dev/null || \
-    warn "dashtodock nicht verfügbar — nach Start via extensions.gnome.org installieren"
-log "Extensions installiert (soweit verfügbar)"
+log "Extensions installiert"
 
 # ── Flatpak für Resources (System Monitor) ────────────────────────────────────
 info "Flatpak + Resources installieren..."
