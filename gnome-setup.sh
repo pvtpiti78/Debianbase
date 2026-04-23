@@ -35,7 +35,7 @@ echo "  ╚██████╔╝██║ ╚████║╚████�
 echo "   ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝"
 echo -e "${NC}"
 echo -e "  ${BOLD}Debian Sid — GNOME Setup${NC}"
-echo -e "  Minimal · GDM · Wayland-only"
+echo -e "  Minimal · GDM · Wayland-only · Sid only"
 echo ""
 warn "Hinweis: GNOME + Nvidia 595 — bekannter Mutter/Cursor-Bug möglich."
 warn "Workaround falls nötig: MUTTER_DEBUG_DISABLE_HW_CURSORS=1 in nvidia.conf einkommentieren"
@@ -44,33 +44,7 @@ echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
 
 
-# ── Experimental Repo — nur für gnome-shell 50 ───────────────────────────────
-info "Experimental Repo einrichten (nur gnome-shell)..."
-if [ ! -f /etc/apt/sources.list.d/experimental.list ] && \
-   [ ! -f /etc/apt/sources.list.d/experimental.sources ]; then
-    cat > /etc/apt/sources.list.d/experimental.list << 'EOF'
-deb http://deb.debian.org/debian experimental main
-EOF
-fi
-
-cat > /etc/apt/preferences.d/experimental.pref << 'EOF'
-# Experimental generell sperren
-Package: *
-Pin: release a=experimental
-Pin-Priority: 1
-
-# Nur gnome-shell aus Experimental erlauben
-Package: gnome-shell
-Pin: release a=experimental
-Pin-Priority: 990
-EOF
-
 apt update
-info "gnome-shell 50 aus Experimental installieren..."
-apt install -t experimental gnome-shell
-log "gnome-shell 50 installiert"
-
-
 info "GNOME (minimal) installieren..."
 apt install -y \
     gnome-shell \
