@@ -82,7 +82,7 @@ LACT_LATEST="${LACT_LATEST_TAG#v}"
 if grep -qi "ubuntu" /etc/os-release; then
     LACT_SUFFIX="ubuntu-2404"
 else
-    LACT_SUFFIX="debian-12"
+    LACT_SUFFIX="debian-13"
 fi
 
 LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/${LACT_LATEST_TAG}/lact-${LACT_LATEST}-0.amd64.${LACT_SUFFIX}.deb"
