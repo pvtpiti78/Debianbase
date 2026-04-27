@@ -51,7 +51,6 @@ apt install -y \
     gnome-session \
     gnome-control-center \
     gnome-text-editor \
-    gnome-disk-utility \
     gnome-tweaks \
     gnome-shell-extension-manager \
     nautilus \
