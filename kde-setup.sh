@@ -123,6 +123,10 @@ log "Unerwünschte KDE-Pakete entfernt"
 
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
+apt remove -y alacritty
+apt remove -y khelpcenter
+apt remove -y vim
+apt remove -y xterm
 apt autoremove -y
 apt clean
 log "Aufgeräumt"
