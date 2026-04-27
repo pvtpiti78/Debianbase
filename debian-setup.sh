@@ -483,7 +483,7 @@ log "ProtonPlus installiert"
 info "LACT installieren (latest release)..."
 LACT_LATEST=$(curl -fsSL "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
     | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
-LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/v${LACT_LATEST}/lact-${LACT_LATEST}-0.amd64.debian-12.deb"
+LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/v${LACT_LATEST}/lact-${LACT_LATEST}-0.amd64.debian-13.deb"
 wget -O /tmp/lact.deb "$LACT_URL"
 apt install -y /tmp/lact.deb
 rm /tmp/lact.deb
@@ -594,7 +594,7 @@ systemctl enable --now zramswap
 
 # zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
 info "Kernel cmdline konfigurieren (zswap deaktivieren)..."
-CMDLINE_PARAMS="zswap.enabled=0"
+CMDLINE_PARAMS="zswap.enabled=0 quiet loglevel=3"
 if [ -f /etc/kernel/cmdline ]; then
     CURRENT_CMDLINE=$(cat /etc/kernel/cmdline)
     NEW_CMDLINE="$CURRENT_CMDLINE"
