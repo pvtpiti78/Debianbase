@@ -537,8 +537,9 @@ WINEESYNC=0
 
 ### VKD3D — Descriptor Heap (neuer Code-Path, benötigt beides zusammen)
 # Nur mit CachyOS Proton / Proton-GE aktiv — Standard-Proton ignoriert das
+VKD3D_CONFIG=descriptor_heap,enable_experimental_features
 PROTON_VKD3D_HEAP=1
-VKD3D_CONFIG=descriptor_heap
+
 
 ### DLSS SR — Preset Latest, 50% Skalierung
 DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on
