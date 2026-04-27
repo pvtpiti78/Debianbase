@@ -46,7 +46,7 @@ read -r
 info "Unerwünschte KDE-Pakete pinnen..."
 cat > /etc/apt/preferences.d/kde-unwanted.pref << 'EOF'
 # Unerwünschte KDE-Pakete — via Recommends reingezogen, nicht benötigt
-Package: plasma-discover plasma-discover-common plasma-discover-backend-fwupd kdeconnect kdeconnect-libs qml6-module-org-kde-kdeconnect libkdsoapwsdiscoveryclient0 plasma-welcome plasma-firewall plasma-vault plasma-thunderbolt plasma-browser-integration alacritty partitionmanager kwalletmanager spectacle
+Package: plasma-discover plasma-discover-common plasma-discover-backend-fwupd kdeconnect kdeconnect-libs qml6-module-org-kde-kdeconnect plasma-welcome plasma-firewall plasma-vault plasma-thunderbolt plasma-browser-integration alacritty partitionmanager kwalletmanager spectacle
 Pin: release *
 Pin-Priority: -1
 EOF
@@ -69,6 +69,7 @@ apt install -y \
     breeze-gtk-theme \
     breeze-icon-theme \
     xdg-desktop-portal-kde \
+    kio-extras \
     gvfs \
     gvfs-backends \
     libnvidia-egl-wayland1 \
@@ -106,7 +107,6 @@ KDE_UNWANTED=(
     kdeconnect
     kdeconnect-libs
     qml6-module-org-kde-kdeconnect
-    libkdsoapwsdiscoveryclient0
     plasma-welcome
     plasma-firewall
     plasma-vault
