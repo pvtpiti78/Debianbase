@@ -108,7 +108,7 @@ log "Extensions installiert"
 # ── Input Remapper ────────────────────────────────────────────────────────────
 info "Input Remapper installieren..."
 apt install -y input-remapper
-systemctl enable --now input-remapper
+systemctl enable --force input-remapper-daemon
 log "Input Remapper installiert und aktiviert"
 
 # ── Flatpak + Resources (System Monitor) ─────────────────────────────────────
