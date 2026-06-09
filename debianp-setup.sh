@@ -712,6 +712,23 @@ info "Berechtigungen Home-Verzeichnis setzen..."
 chown -R "$CURRENT_USER:$CURRENT_USER" "$USER_HOME"
 log "Berechtigungen gesetzt"
 
+# ── NetworkManager ───────────────────────────────────────────────────────────
+info "NetworkManager einrichten..."
+apt install -y network-manager
+
+# enp7s0 Einträge in /etc/network/interfaces auskommentieren
+# damit NM die Schnittstelle übernehmen kann — läuft erst nach Reboot
+INTERFACES_FILE="/etc/network/interfaces"
+if [ -f "$INTERFACES_FILE" ]; then
+    sed -i '/enp7s0/s/^/#/' "$INTERFACES_FILE"
+    log "enp7s0 in $INTERFACES_FILE auskommentiert"
+else
+    warn "$INTERFACES_FILE nicht gefunden — übersprungen"
+fi
+
+systemctl enable NetworkManager
+log "NetworkManager aktiviert (übernimmt nach Reboot)"
+
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
 apt autoremove -y
