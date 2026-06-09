@@ -92,7 +92,7 @@ apt install -y \
     hunspell-en-us \
     lsb-release \
     firmware-linux \
-    firmware-realtek
+    firmware-linux-nonfree
 log "Basis-Pakete installiert"
 
 info "Writing fastfetch config..."
@@ -594,41 +594,23 @@ EOF
 systemctl enable zramswap
 # --now weggelassen: zram Modul erst nach Reboot verfügbar
 
-# zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
-info "Kernel cmdline konfigurieren (zswap deaktivieren)..."
-CMDLINE_PARAMS="zswap.enabled=0 quiet loglevel=3"
-if [ -f /etc/kernel/cmdline ]; then
-    CURRENT_CMDLINE=$(cat /etc/kernel/cmdline)
-    NEW_CMDLINE="$CURRENT_CMDLINE"
-    for param in $CMDLINE_PARAMS; do
-        KEY="${param%%=*}"
-        if ! echo "$NEW_CMDLINE" | grep -qE "(^| )${KEY}[= ]"; then
-            NEW_CMDLINE="$NEW_CMDLINE $param"
-        fi
-    done
-    echo "$NEW_CMDLINE" > /etc/kernel/cmdline
-else
-    echo "$CMDLINE_PARAMS" > /etc/kernel/cmdline
-fi
+log "ZRAM konfiguriert"
 
-if command -v bootctl &>/dev/null; then
-    kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" 2>/dev/null || true
+# ── systemd-boot & Kernel-Automatisierung ─────────────────────────────────────
+info "systemd-boot Hooks und Parameter konfigurieren..."
+apt install -y systemd-boot-efi
+mkdir -p /etc/kernel
+echo "zswap.enabled=0 quiet loglevel=3" > /etc/kernel/cmdline
+if [ ! -d /boot/efi/loader ]; then
+    bootctl install
 fi
-log "ZRAM konfiguriert, zswap deaktiviert"
-
-# ── systemd-boot Menü ─────────────────────────────────────────────────────────
-info "systemd-boot Timeout konfigurieren..."
-LOADER_CONF="/boot/efi/loader/loader.conf"
-if [ -d /boot/efi/loader ]; then
-    cat > "$LOADER_CONF" << 'EOF'
+cat > /boot/efi/loader/loader.conf << 'EOF'
 timeout 5
 console-mode auto
 editor yes
 EOF
-    log "systemd-boot Timeout gesetzt (5s)"
-else
-    warn "systemd-boot nicht gefunden — kein EFI oder anderer Bootloader aktiv"
-fi
+kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" /boot/initrd.img-"$(uname -r)" 2>/dev/null || true
+log "systemd-boot und Kernel-Hooks erfolgreich konfiguriert"
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
 info "sysctl vm.max_map_count setzen..."
@@ -695,8 +677,6 @@ log "NetworkManager aktiviert (übernimmt nach Reboot)"
 
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
-apt modernize-sources -y
-apt update -y
 apt autoremove -y
 apt clean
 log "Aufgeräumt"
