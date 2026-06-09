@@ -100,7 +100,6 @@ log "Wayland konfiguriert"
 # ── GNOME Shell Extensions ────────────────────────────────────────────────────
 info "Extensions installieren..."
 apt install -y \
-    gnome-shell-extension-appindicator \
     gnome-shell-extension-dash-to-panel || \
     warn "Einige Extensions nicht verfügbar — nach GNOME-Start via Extension Manager installieren"
 log "Extensions installiert"
