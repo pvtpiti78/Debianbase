@@ -92,7 +92,7 @@ apt install -y \
     hunspell-en-us \
     lsb-release \
     firmware-linux \
-    firmware-linux-nonfree
+    firmware-realtek
 log "Basis-Pakete installiert"
 
 info "Writing fastfetch config..."
