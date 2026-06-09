@@ -3,7 +3,7 @@
 # debian-setup.sh — Debian Sid Base Setup
 # =============================================================================
 # Ausgangslage: Minimale Debian Sid TTY-Installation (mini.iso)
-# Umfang: APT-Tuning, i386, Nvidia 595+ Open (CUDA Repo), NTSYNC, Fish,
+# Umfang: APT-Tuning, i386, Nvidia Open (CUDA Repo), NTSYNC, Fish,
 #         Kitty, Starship, Fastfetch, Firefox, Steam, gaming.conf
 # =============================================================================
 
@@ -534,11 +534,8 @@ PROTON_USE_NTSYNC=1
 DXVK_NVAPI_VKREFLEX=1
 PROTON_PRIORITY_HIGH=1
 
-### VKD3D Descriptor Heap (rebased branch, cachyos-10.0-20260409-slr+)
-# Requires vkd3d-proton with descriptor_heap rebase — not yet in GE/CachyOS stable
-# Both vars must be set together; enables new code path alongside legacy for testing
+### VKD3D Descriptor Heap (in vkd3d-proton mainline seit 20260521)
 VKD3D_CONFIG=descriptor_heap
-# PROTON_VKD3D_HEAP=1
 
 ### NTSYNC
 WINEFSYNC=0
@@ -594,7 +591,8 @@ ALGO=zstd
 PERCENT=15
 EOF
 
-systemctl enable --now zramswap
+systemctl enable zramswap
+# --now weggelassen: zram Modul erst nach Reboot verfügbar
 
 # zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
 info "Kernel cmdline konfigurieren (zswap deaktivieren)..."
@@ -680,6 +678,21 @@ info "Berechtigungen Home-Verzeichnis setzen..."
 chown -R "$CURRENT_USER:$CURRENT_USER" "$USER_HOME"
 log "Berechtigungen gesetzt"
 
+# ── NetworkManager ───────────────────────────────────────────────────────────
+info "NetworkManager einrichten..."
+apt install -y network-manager
+
+INTERFACES_FILE="/etc/network/interfaces"
+if [ -f "$INTERFACES_FILE" ]; then
+    sed -i '/enp7s0/s/^/#/' "$INTERFACES_FILE"
+    log "enp7s0 in $INTERFACES_FILE auskommentiert"
+else
+    warn "$INTERFACES_FILE nicht gefunden — übersprungen"
+fi
+
+systemctl enable NetworkManager
+log "NetworkManager aktiviert (übernimmt nach Reboot)"
+
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
 apt autoremove -y
@@ -694,7 +707,7 @@ echo -e "${BOLD}${GREEN}══════════════════�
 echo ""
 echo -e "  ${CYAN}Nächste Schritte:${NC}"
 echo -e "  1.  ${BOLD}sudo reboot${NC}"
-echo -e "  2.  ${BOLD}cd Debianbase && sudo bash install-de.sh${NC}"
+echo -e "  2.  ${BOLD}cd Debianbase && sudo bash gnome-setup.sh${NC}"
 echo ""
 echo -e "  ${CYAN}Nach dem Reboot prüfen:${NC}"
 echo -e "  • Nvidia:   ${BOLD}nvidia-smi${NC}"
