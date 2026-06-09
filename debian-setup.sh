@@ -677,6 +677,8 @@ log "NetworkManager aktiviert (übernimmt nach Reboot)"
 
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
+apt modernize-sources -y
+apt update
 apt autoremove -y
 apt clean
 log "Aufgeräumt"
