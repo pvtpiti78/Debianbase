@@ -626,7 +626,8 @@ ALGO=zstd
 PERCENT=15
 EOF
 
-systemctl enable --now zramswap
+systemctl enable zramswap
+# --now weggelassen: zram Modul erst nach Reboot auf XanMod verfügbar
 
 # zswap deaktivieren (kollidiert mit zram) — systemd-boot cmdline
 info "Kernel cmdline konfigurieren (zswap deaktivieren)..."
