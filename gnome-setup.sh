@@ -2,8 +2,8 @@
 # =============================================================================
 # gnome-setup.sh — Debian Sid GNOME Setup
 # =============================================================================
-# Voraussetzung: debian-setup.sh wurde ausgeführt + Reboot
-# Umfang: Minimales GNOME, GDM, Wayland-only
+# Voraussetzung: debian-setup.sh / debianp-setup.sh wurde ausgeführt + Reboot
+# Umfang: Minimales GNOME, GDM, Wayland-only, Input Remapper
 # =============================================================================
 
 set -euo pipefail
@@ -35,16 +35,17 @@ echo "  ╚██████╔╝██║ ╚████║╚████�
 echo "   ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝"
 echo -e "${NC}"
 echo -e "  ${BOLD}Debian Sid — GNOME Setup${NC}"
-echo -e "  Minimal · GDM · Wayland-only · Sid only"
+echo -e "  Minimal · GDM · Wayland-only · Input Remapper"
 echo ""
-warn "Hinweis: GNOME + Nvidia 595 — bekannter Mutter/Cursor-Bug möglich."
-warn "Workaround falls nötig: MUTTER_DEBUG_DISABLE_HW_CURSORS=1 in nvidia.conf einkommentieren"
+warn "Hinweis: GNOME + Nvidia 610+ — Mutter/Cursor-Bug seit Mutter 50.0.2 gefixt."
+warn "Workaround falls doch nötig: MUTTER_DEBUG_DISABLE_HW_CURSORS=1 in nvidia.conf einkommentieren"
 echo ""
 echo -e "  ${YELLOW}ENTER zum Starten, CTRL+C zum Abbrechen.${NC}"
 read -r
 
-
 apt update
+
+# ── GNOME (minimal) installieren ─────────────────────────────────────────────
 info "GNOME (minimal) installieren..."
 apt install -y \
     gnome-shell \
@@ -63,6 +64,27 @@ apt install -y \
     gnome-backgrounds \
     libnvidia-egl-wayland1
 log "GNOME installiert"
+
+# ── Unerwünschte Pakete entfernen ─────────────────────────────────────────────
+info "Unerwünschte Pakete entfernen..."
+UNWANTED=(
+    yelp            # GNOME Hilfe
+    xterm           # xterm + uxterm
+    vim             # Vim
+    vim-common
+    vim-tiny
+    alacritty       # Alacritty Terminal
+    malcontent      # Kindersicherung
+)
+for pkg in "${UNWANTED[@]}"; do
+    if dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+        apt purge -y "$pkg" && log "  Entfernt: $pkg" || warn "  Konnte nicht entfernen: $pkg"
+    else
+        info "  Nicht installiert (übersprungen): $pkg"
+    fi
+done
+apt autoremove -y
+log "Aufgeräumt"
 
 # ── GDM aktivieren ────────────────────────────────────────────────────────────
 info "GDM als Display Manager aktivieren..."
@@ -83,14 +105,19 @@ apt install -y \
     warn "Einige Extensions nicht verfügbar — nach GNOME-Start via Extension Manager installieren"
 log "Extensions installiert"
 
-# ── Flatpak für Resources (System Monitor) ────────────────────────────────────
+# ── Input Remapper ────────────────────────────────────────────────────────────
+info "Input Remapper installieren..."
+apt install -y input-remapper
+systemctl enable --now input-remapper
+log "Input Remapper installiert und aktiviert"
+
+# ── Flatpak + Resources (System Monitor) ─────────────────────────────────────
 info "Flatpak + Resources installieren..."
 apt install -y flatpak
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 flatpak install -y flathub net.nokyan.Resources || \
     warn "Resources konnte nicht installiert werden — nach Reboot manuell: flatpak install flathub net.nokyan.Resources"
 log "Flatpak + Resources installiert"
-
 
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
@@ -105,6 +132,9 @@ echo -e "${BOLD}${GREEN}  GNOME Setup abgeschlossen!${NC}"
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  ${CYAN}System neu starten:${NC}  ${BOLD}sudo reboot${NC}"
+echo ""
+echo -e "  ${CYAN}Nach dem Reboot prüfen:${NC}"
+echo -e "  • Input Remapper:  ${BOLD}systemctl status input-remapper${NC}"
 echo ""
 echo -e "  ${YELLOW}Falls Cursor-Bug auftritt:${NC}"
 echo -e "  /etc/environment.d/nvidia.conf → MUTTER_DEBUG_DISABLE_HW_CURSORS=1 einkommentieren"
