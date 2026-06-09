@@ -526,22 +526,25 @@ __GL_VRR_ALLOWED=1
 __GL_SHADER_DISK_CACHE_SIZE=12000000000
 
 ### Proton / Wayland
+PROTON_DLSS_UPGRADE=1
 PROTON_ENABLE_NGX_UPDATER=1
 PROTON_ENABLE_WAYLAND=1
 PROTON_ENABLE_NVAPI=1
 PROTON_USE_NTSYNC=1
+DXVK_NVAPI_VKREFLEX=1
+PROTON_PRIORITY_HIGH=1
 
-### NTSYNC — kein esync/fsync
+### VKD3D Descriptor Heap (rebased branch, cachyos-10.0-20260409-slr+)
+# Requires vkd3d-proton with descriptor_heap rebase — not yet in GE/CachyOS stable
+# Both vars must be set together; enables new code path alongside legacy for testing
+VKD3D_CONFIG=descriptor_heap
+# PROTON_VKD3D_HEAP=1
+
+### NTSYNC
 WINEFSYNC=0
 WINEESYNC=0
 
-### VKD3D — Descriptor Heap (neuer Code-Path, benötigt beides zusammen)
-# Nur mit CachyOS Proton / Proton-GE aktiv — Standard-Proton ignoriert das
-VKD3D_CONFIG=descriptor_heap,enable_experimental_features
-PROTON_VKD3D_HEAP=1
-
-
-### DLSS SR — Preset Latest, 50% Skalierung
+### DLSS SR
 DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE=on
 DXVK_NVAPI_DRS_NGX_DLSS_SR_MODE=custom
 DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_SCALING_RATIO=50
@@ -551,14 +554,14 @@ DXVK_NVAPI_DRS_NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION=render_preset_latest
 DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE=on
 DXVK_NVAPI_DRS_NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION=render_preset_latest
 
-### Frame Generation — Dynamic MFG
+### Frame Generation (Dynamic MFG)
 DXVK_NVAPI_DRS_NGX_DLSS_FG_OVERRIDE=on
 DXVK_NVAPI_DRS_NGX_DLSS_FG_OVERRIDE_RENDER_PRESET_SELECTION=render_preset_latest
 DXVK_NVAPI_DRS_NGX_DLSSG_MODE=dynamic
 DXVK_NVAPI_DRS_NGX_DLSSG_DYNAMIC_TARGET_FRAME_RATE=240
 DXVK_NVAPI_DRS_NGX_DLSSG_DYNAMIC_MULTI_FRAME_COUNT_MAX=5
 
-### Frame Rate Cap — 237 FPS (VRR-Dropout-Schutz bei 240Hz)
+### Frame Rate Cap
 DXVK_FRAME_RATE=237
 VKD3D_FRAME_RATE=237
 
@@ -567,7 +570,7 @@ DXVK_HDR=1
 PROTON_ENABLE_HDR=1
 ENABLE_HDR_WSI=1
 
-### Debug (DLSS + DLSSG Indicator)
+### Debug
 # DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS="DLSSIndicator=1024,DLSSGIndicator=2"
 EOF
 log "gaming.conf erstellt"
