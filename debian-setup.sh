@@ -9,10 +9,10 @@
 
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
+RED='\033;0;31m'
+GREEN='\033;0;32m'
 YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
+CYAN='\033;0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -593,22 +593,27 @@ EOF
 
 systemctl enable zramswap
 # --now weggelassen: zram Modul erst nach Reboot verfügbar
-
 log "ZRAM konfiguriert"
 
 # ── systemd-boot & Kernel-Automatisierung ─────────────────────────────────────
 info "systemd-boot Hooks und Parameter konfigurieren..."
 apt install -y systemd-boot-efi
+
 mkdir -p /etc/kernel
 echo "zswap.enabled=0 quiet loglevel=3" > /etc/kernel/cmdline
+
 if [ ! -d /boot/efi/loader ]; then
     bootctl install
 fi
+
 cat > /boot/efi/loader/loader.conf << 'EOF'
 timeout 5
 console-mode auto
 editor yes
 EOF
+
+# Registriert den aktuellen Kernel initial im Systemd-Boot Setup
+kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" /boot/initrd.img-"$(uname -r)" 2>/dev/null || true
 log "systemd-boot und Kernel-Hooks erfolgreich konfiguriert"
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
@@ -677,7 +682,8 @@ log "NetworkManager aktiviert (übernimmt nach Reboot)"
 # ── Aufräumen ─────────────────────────────────────────────────────────────────
 info "Aufräumen..."
 apt modernize-sources -y
-apt upgrade
+apt update
+apt full-upgrade -y
 apt autoremove -y
 apt clean
 log "Aufgeräumt"
