@@ -608,7 +608,7 @@ mkdir -p /etc/kernel
 echo "zswap.enabled=0 quiet loglevel=3 rw" > /etc/kernel/cmdline
 
 # Bootloader in die EFI-Partition injizieren
-bootctl install --force
+bootctl install
 
 # Globale loader.conf schreiben
 cat > /boot/efi/loader/loader.conf << 'EOF'
