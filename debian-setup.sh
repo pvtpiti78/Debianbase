@@ -609,7 +609,6 @@ timeout 5
 console-mode auto
 editor yes
 EOF
-kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" /boot/initrd.img-"$(uname -r)" 2>/dev/null || true
 log "systemd-boot und Kernel-Hooks erfolgreich konfiguriert"
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
