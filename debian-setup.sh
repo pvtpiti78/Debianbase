@@ -9,10 +9,10 @@
 
 set -euo pipefail
 
-RED='\033;0;31m'
-GREEN='\033;0;32m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-CYAN='\033;0;36m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -592,28 +592,35 @@ PERCENT=15
 EOF
 
 systemctl enable zramswap
-# --now weggelassen: zram Modul erst nach Reboot verfügbar
 log "ZRAM konfiguriert"
 
 # ── systemd-boot & Kernel-Automatisierung ─────────────────────────────────────
 info "systemd-boot Hooks und Parameter konfigurieren..."
-apt install -y systemd-boot-efi
 
+# Lokale machine-id erzwingen, falls noch nicht existent
+systemd-machine-id-setup
+
+# Benötigte Pakete für den automatisierten systemd-boot Lifecycle laden
+apt install -y systemd-boot systemd-boot-efi
+
+# Kernel-Kommandozeile permanent hinterlegen (rw ist zwingend nötig für systemd-boot)
 mkdir -p /etc/kernel
-echo "zswap.enabled=0 quiet loglevel=3" > /etc/kernel/cmdline
+echo "zswap.enabled=0 quiet loglevel=3 rw" > /etc/kernel/cmdline
 
-if [ ! -d /boot/efi/loader ]; then
-    bootctl install
-fi
+# Bootloader in die EFI-Partition injizieren
+bootctl install --force
 
+# Globale loader.conf schreiben
 cat > /boot/efi/loader/loader.conf << 'EOF'
 timeout 5
 console-mode auto
 editor yes
 EOF
 
-# Registriert den aktuellen Kernel initial im Systemd-Boot Setup
-kernel-install add "$(uname -r)" /boot/vmlinuz-"$(uname -r)" /boot/initrd.img-"$(uname -r)" 2>/dev/null || true
+# Kernel-Hooks via dpkg triggern, um Einträge und Kopien sauber zu erzeugen
+info "Triggere Debian Kernel-Hooks..."
+dpkg-reconfigure linux-image-$(uname -r)
+
 log "systemd-boot und Kernel-Hooks erfolgreich konfiguriert"
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
