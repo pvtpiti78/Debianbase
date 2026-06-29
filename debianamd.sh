@@ -4,7 +4,9 @@
 # =============================================================================
 # Ausgangslage: Minimale Debian Sid TTY-Installation (mini.iso)
 # Umfang: APT-Tuning, i386, AMD Mesa/RADV (RX 9070 XT), NTSYNC, Fish,
-#         Kitty, Starship, Fastfetch, Firefox, Steam, gaming.conf
+#         Kitty, Starship, Fastfetch, Firefox, Steam, gaming.conf,
+#         XanMod-Edge Kernel (x64v3), GRUB + Secure Boot (MOK-Signing),
+#         Dual-Boot-Erkennung (os-prober) für Windows 11
 # =============================================================================
 
 set -euo pipefail
@@ -502,36 +504,31 @@ cat > /etc/environment.d/gaming.conf << 'EOF'
 ### Proton / Wayland
 PROTON_ENABLE_WAYLAND=1
 PROTON_USE_NTSYNC=1
-PROTON_PRIORITY_HIGH=1
-MESA_SHADER_CACHE_MAX_SIZE=12G
-PROTON_FSR4_UPGRADE=1
-PROTON_XESS_UPGRADE=1
 PROTON_USE_OPTISCALER=1
-
-### VKD3D Descriptor Heap (mainline seit vkd3d-proton 20260521)
-VKD3D_CONFIG=descriptor_heap
-
-### NTSYNC
+PROTON_XESS_UPGRADE=1
+### NTSYNC — kein esync/fsync
 WINEFSYNC=0
 WINEESYNC=0
-
-### Frame Rate Cap (237)
+### Optiscaler FSR4 Override Prep & Upgrade
+PROTON_FSR4_UPGRADE=1
+### Mesa Shader Cache
+MESA_SHADER_CACHE_MAX_SIZE=12G
+### Frame Rate Cap — 237 FPS (VRR-Dropout-Schutz bei 240Hz)
 DXVK_FRAME_RATE=237
 VKD3D_FRAME_RATE=237
-
-### HDR
+### HDR (Für Wayland Compositor)
 DXVK_HDR=1
 PROTON_ENABLE_HDR=1
 ENABLE_HDR_WSI=1
 EOF
-log "gaming.conf erstellt"
+log "gaming.conf erstellt (Nvidia-Altlasten entfernt, 1:1 Parität zu Arch)"
 
-# ── amd.conf ENV ──────────────────────────────────────────────────────────────
-info "amd.conf ENV erstellen..."
-cat > /etc/environment.d/amd.conf << 'EOF'
+# ── amdgpu.conf ENV ───────────────────────────────────────────────────────────
+info "amdgpu.conf ENV erstellen..."
+cat > /etc/environment.d/amdgpu.conf << 'EOF'
 LIBVA_DRIVER_NAME=radeonsi
 EOF
-log "amd.conf ENV erstellt"
+log "amdgpu.conf ENV erstellt"
 
 # ── ZRAM ──────────────────────────────────────────────────────────────────────
 info "ZRAM konfigurieren..."
@@ -546,46 +543,106 @@ EOF
 systemctl enable zramswap
 log "ZRAM konfiguriert"
 
-# ── systemd-boot & Kernel-Automatisierung ─────────────────────────────────────
-info "systemd-boot Hooks und Parameter konfigurieren..."
+# ── XanMod-Edge Kernel (x64v3) ────────────────────────────────────────────────
+info "XanMod-Repository einrichten..."
+curl -fsSL https://dl.xanmod.org/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg
+echo 'deb [signed-by=/usr/share/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org releases main' \
+    > /etc/apt/sources.list.d/xanmod-release.list
+apt update
+log "XanMod-Repository eingerichtet"
+
+info "XanMod-Edge Kernel (x64v3) installieren..."
+apt install -y linux-xanmod-edge-x64v3
+log "XanMod-Edge Kernel installiert (Stock-Debian-Kernel bleibt als Fallback-Bootoption erhalten)"
+
+# ── GRUB & Secure Boot (MOK-Signing für XanMod) ───────────────────────────────
+info "GRUB und Secure-Boot-Kette installieren..."
 
 # Lokale machine-id erzwingen, falls noch nicht existent
 systemd-machine-id-setup
 
-# Benötigte Pakete für den automatisierten systemd-boot Lifecycle laden
-apt install -y systemd-boot systemd-boot-efi
+# shim-signed bringt eine von Microsoft signierte Bootkette mit, grub-efi-amd64-signed
+# ist der dazu passende, ebenfalls signierte GRUB. Damit bootet GRUB selbst unter
+# aktivem Secure Boot ohne weiteren Aufwand.
+apt install -y grub-efi-amd64 grub-efi-amd64-signed shim-signed os-prober mokutil sbsigntool
 
-# Ermittelt die UUID der aktuellen Root-Partition vollautomatisch
-ROOT_UUID=$(findmnt -no UUID /)
+# os-prober aktivieren, damit GRUB den Windows-11-Bootmanager (bootmgfw.efi) findet
+sed -i 's/^#\?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub
+grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub || echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
 
-# Kernel-Kommandozeile permanent inklusive korrekter UUID hinterlegen
-mkdir -p /etc/kernel
-echo "root=UUID=${ROOT_UUID} zswap.enabled=0 quiet loglevel=3 rw" > /etc/kernel/cmdline
+# Kernel-Kommandozeile (analog zur bisherigen systemd-boot cmdline)
+sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="zswap.enabled=0 quiet loglevel=3"/' /etc/default/grub
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=5/' /etc/default/grub
 
-# Pfade für das TTY auffrischen, damit bootctl sofort bekannt ist
-export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+# GRUB in die EFI-Partition installieren (Bootloader-ID "Debian", neben Windows)
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Debian
 
-# Bootloader in die EFI-Partition injizieren
-bootctl install
+# os-prober braucht lesenden Zugriff auf die Windows-ESP/NTFS-Partitionen — bei
+# einem klassischen Dual-Boot-Setup (separate Platte/Partition für Win11) ist das
+# i.d.R. automatisch der Fall, sobald os-prober installiert ist.
+update-grub
+log "GRUB installiert, Windows-11-Eintrag wird (falls erkannt) automatisch gelistet"
 
-# Globale loader.conf schreiben
-cat > /boot/efi/loader/loader.conf << 'EOF'
-timeout 5
-console-mode auto
-editor yes
-EOF
+# ── Secure Boot: MOK-Key erzeugen & XanMod-Kernel signieren ──────────────────
+info "MOK-Schlüsselpaar für unsigned XanMod-Kernel erzeugen..."
+MOK_DIR="/root/secureboot"
+mkdir -p "$MOK_DIR"
+if [[ ! -f "$MOK_DIR/MOK.priv" ]]; then
+    openssl req -new -x509 -newkey rsa:2048 -keyout "$MOK_DIR/MOK.priv" \
+        -outform DER -out "$MOK_DIR/MOK.der" -nodes -days 36500 \
+        -subj "/CN=XanMod Secure Boot MOK/"
+    chmod 600 "$MOK_DIR/MOK.priv"
+    log "MOK-Schlüsselpaar erzeugt unter $MOK_DIR"
+else
+    warn "MOK-Schlüsselpaar existiert bereits — wird wiederverwendet"
+fi
 
-# Kernel-Hooks via dpkg triggern, um Einträge und Kopien sauber zu erzeugen
-info "Triggere Debian Kernel-Hooks..."
-dpkg-reconfigure linux-image-$(uname -r)
+info "Aktuellen XanMod-Kernel signieren..."
+for kernel in /boot/vmlinuz-*xanmod*; do
+    [[ -f "$kernel" ]] || continue
+    sbsign --key "$MOK_DIR/MOK.priv" --cert "$MOK_DIR/MOK.der" --output "$kernel" "$kernel" \
+        || warn "Signieren von $kernel fehlgeschlagen"
+done
+log "XanMod-Kernel signiert"
 
-log "systemd-boot und Kernel-Hooks erfolgreich konfiguriert"
+info "Hook für automatisches Signieren bei künftigen Kernel-Updates anlegen..."
+cat > /etc/kernel/postinst.d/zz-sbsign-xanmod << 'HOOKEOF'
+#!/bin/bash
+# Signiert frisch installierte XanMod-Kernel automatisch mit dem lokalen MOK-Key,
+# damit sie unter aktivem Secure Boot weiterhin booten.
+set -e
+MOK_DIR="/root/secureboot"
+KERNEL_VERSION="$1"
+KERNEL_IMAGE="/boot/vmlinuz-${KERNEL_VERSION}"
+[[ "$KERNEL_VERSION" == *xanmod* ]] || exit 0
+[[ -f "$MOK_DIR/MOK.priv" ]] || exit 0
+[[ -f "$KERNEL_IMAGE" ]] || exit 0
+command -v sbsign >/dev/null 2>&1 || exit 0
+sbsign --key "$MOK_DIR/MOK.priv" --cert "$MOK_DIR/MOK.der" --output "$KERNEL_IMAGE" "$KERNEL_IMAGE"
+HOOKEOF
+chmod +x /etc/kernel/postinst.d/zz-sbsign-xanmod
+log "Postinst-Hook angelegt — künftige XanMod-Updates werden automatisch signiert"
+
+info "MOK-Key zum Enrollment im UEFI vormerken..."
+echo ""
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}  WICHTIG — Secure Boot ist AN, MOK-Enrollment erforderlich!${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════════${NC}"
+echo "  Jetzt: mokutil --import $MOK_DIR/MOK.der ausführen und ein"
+echo "  Passwort vergeben. Beim NÄCHSTEN Neustart erscheint der blaue"
+echo "  'MokManager' Bildschirm — dort 'Enroll MOK' wählen und das"
+echo "  eben vergebene Passwort eingeben. Ohne diesen Schritt bootet"
+echo "  der XanMod-Kernel unter Secure Boot NICHT."
+echo -e "${YELLOW}═══════════════════════════════════════════════════════════════${NC}"
+echo ""
+mokutil --import "$MOK_DIR/MOK.der"
 
 # ── sysctl — vm.max_map_count (Steam/Wine) ───────────────────────────────────
 info "sysctl vm.max_map_count setzen..."
 cat > /etc/sysctl.d/99-gaming.conf << 'EOF'
 vm.max_map_count=2147483642
 vm.swappiness=10
+kernel.split_lock_mitigate=0
 EOF
 sysctl --system > /dev/null
 log "sysctl konfiguriert"
@@ -659,11 +716,19 @@ echo -e "${BOLD}${GREEN}══════════════════�
 echo -e "${BOLD}${GREEN}  Base-Setup abgeschlossen!${NC}"
 echo -e "${BOLD}${GREEN}════════════════════════════════════════════${NC}"
 echo ""
+echo -e "  ${RED}${BOLD}WICHTIG vor dem Reboot:${NC}"
+echo -e "  ${BOLD}mokutil --import /root/secureboot/MOK.der${NC} (falls noch nicht gelaufen),"
+echo -e "  dann beim Neustart im blauen MokManager 'Enroll MOK' bestätigen —"
+echo -e "  sonst bootet der XanMod-Kernel unter Secure Boot nicht."
+echo ""
 echo -e "  ${CYAN}Nächste Schritte:${NC}"
-echo -e "  1.  ${BOLD}sudo reboot${NC}"
-echo -e "  2.  ${BOLD}cd Debianbase && sudo bash gnome-setup.sh${NC}"
+echo -e "  1.  ${BOLD}sudo reboot${NC}  (MOK-Enrollment + GRUB-Menü prüfen, Windows 11 sollte gelistet sein)"
+echo -e "  2.  ${BOLD}uname -r${NC}  (sollte ...xanmod... zeigen)"
+echo -e "  3.  ${BOLD}cd Debianbase && sudo bash gnome-setup.sh${NC}"
 echo ""
 echo -e "  ${CYAN}Nach dem Reboot prüfen:${NC}"
 echo -e "  • GPU:      ${BOLD}vulkaninfo --summary${NC} / ${BOLD}vainfo${NC}"
 echo -e "  • NTSYNC:   ${BOLD}ls /dev/ntsync${NC}"
+echo -e "  • Kernel:   ${BOLD}uname -r${NC}"
+echo -e "  • SecureBoot: ${BOLD}mokutil --sb-state${NC}"
 echo ""
