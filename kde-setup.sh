@@ -72,7 +72,6 @@ apt install -y \
     kio-extras \
     gvfs \
     gvfs-backends \
-    libnvidia-egl-wayland1 \
     plasma-systemmonitor
 log "KDE Plasma installiert"
 
