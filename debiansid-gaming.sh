@@ -107,7 +107,7 @@ $APT install \
   upower \
   udisks2 \
   kscreen \
-  kwallet-pam \
+  libpam-kwallet5 \
   bluedevil \
   bluez \
   sddm \
@@ -259,16 +259,26 @@ $APT install /tmp/chrome.deb && log "Chrome installiert (Updates via apt)." \
 # Nicht in den Debian-Repos — offizieller Weg ist das .deb vom Release.
 # Wir nehmen dynamisch das neueste debian-XX-Build (laeuft auf sid).
 info "Installiere LACT (latest release)..."
+# Achtung sid: Das debian-13-.deb ist gegen Trixie gebaut. Wenn sid gerade
+# eine Library-Transition durch hat (z.B. libdisplay-info2 weg), schlaegt
+# die Installation fehl -> dann Fallback auf den offiziellen Flatpak.
+LACT_OK=0
 LACT_LATEST=$(curl -fsSL "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
     | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
 if [[ -n "${LACT_LATEST:-}" ]]; then
   LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/v${LACT_LATEST}/lact-${LACT_LATEST}-0.amd64.debian-13.deb"
-  wget -qO /tmp/lact.deb "$LACT_URL" && $APT install /tmp/lact.deb \
-    && log "LACT ${LACT_LATEST} installiert." || warn "LACT-Installation fehlgeschlagen."
-else
-  warn "LACT-Version nicht ermittelbar — manuell von github.com/ilya-zlobintsev/LACT/releases."
+  if wget -qO /tmp/lact.deb "$LACT_URL" && $APT install /tmp/lact.deb; then
+    sudo systemctl enable --now lactd || warn "lactd nach Reboot pruefen."
+    LACT_OK=1
+    log "LACT ${LACT_LATEST} (nativ) installiert."
+  fi
 fi
-sudo systemctl enable --now lactd 2>/dev/null || warn "lactd nach Reboot pruefen."
+if [[ $LACT_OK -eq 0 ]]; then
+  warn "Natives .deb nicht installierbar (sid-Transition?) — Fallback: Flatpak."
+  sudo flatpak install -y flathub io.github.ilya_zlobintsev.LACT \
+    && log "LACT (Flatpak) installiert. Beim ersten GUI-Start den Daemon-Setup-Prompt bestaetigen (legt lactd als Systemdienst an)." \
+    || warn "LACT komplett fehlgeschlagen — manuell nachziehen."
+fi
 # Dein Setting zur Erinnerung: -70 mV / -25% Powerlimit
 
 # ============================================================================
@@ -302,6 +312,32 @@ EOF
 
 sudo systemctl enable fstrim.timer || warn "fstrim.timer nicht aktivierbar."
 log "sysctl, ZRAM, Env-Variablen, fstrim gesetzt."
+
+# ============================================================================
+# 12b. Bash-Aliase (~/.bash_aliases — wird von Debians .bashrc automatisch
+#      gesourced, kein Eingriff in .bashrc noetig)
+# ============================================================================
+info "Schreibe Bash-Aliase..."
+tee "$HOME/.bash_aliases" >/dev/null <<'EOF'
+# --- Paketverwaltung (apt + flatpak) ---
+alias update='sudo apt update && sudo apt full-upgrade && flatpak update -y'
+alias install='sudo apt install'
+alias remove='sudo apt remove'
+alias purge='sudo apt purge --autoremove'
+alias clean='sudo apt autoremove --purge -y && sudo apt clean && flatpak uninstall --unused -y'
+alias search='apt search'
+alias show='apt show'
+
+# --- QoL ---
+alias ll='ls -lah --color=auto'
+alias la='ls -A --color=auto'
+alias grep='grep --color=auto'
+alias df='df -h'
+alias free='free -h'
+alias ..='cd ..'
+alias ...='cd ../..'
+EOF
+log "Aliase in ~/.bash_aliases geschrieben (aktiv ab naechster Shell)."
 
 # ============================================================================
 # 13. scx/falcond: bewusst weggelassen

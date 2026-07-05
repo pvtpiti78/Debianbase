@@ -1,12 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # gametools-update.sh — LACT · Heroic · Faugus Updater
 # =============================================================================
-# Kompatibel mit Ubuntu 24.04/26.04 und Debian-basierten Systemen
-# Prüft installierte Version gegen GitHub latest — fragt vor jedem Update
+# Kompatibel mit Debian Sid / Trixie / Ubuntu-Basis
+# Prueft installierte Version gegen GitHub latest — fragt vor jedem Update
+# LACT: erkennt automatisch Flatpak- vs. Nativ-Installation
+# Fehlertolerant: ein fehlgeschlagenes Update bricht die anderen nicht ab
+# Start: als normaler User (sudo wird intern genutzt)
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail   # bewusst KEIN -e: ein Fehlschlag soll den Rest nicht killen
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -22,7 +25,7 @@ err()     { echo -e "${RED}[✗]${NC} $*"; }
 updated() { echo -e "${GREEN}[↑]${NC} $*"; }
 skipped() { echo -e "${YELLOW}[–]${NC} $*"; }
 
-[[ $EUID -ne 0 ]] && err "Bitte als root ausführen: sudo bash gametools-update.sh" && exit 1
+[[ $EUID -eq 0 ]] && { err "Nicht als root — als User starten, sudo kommt von allein."; exit 1; }
 
 clear
 echo -e "${BOLD}${CYAN}"
@@ -39,7 +42,7 @@ echo ""
 
 # ── Hilfsfunktion: GitHub latest tag holen ────────────────────────────────────
 gh_latest() {
-    curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
+    curl -fsSL "https://api.github.com/repos/$1/releases/latest" 2>/dev/null \
         | grep '"tag_name"' \
         | sed 's/.*"\([^"]*\)".*/\1/'
 }
@@ -63,43 +66,70 @@ ask_update() {
     [[ "$answer" =~ ^[Yy]$ ]]
 }
 
-# ── Hilfsfunktion: kein Update nötig ─────────────────────────────────────────
+# ── Hilfsfunktion: kein Update noetig ────────────────────────────────────────
 up_to_date() {
     echo ""
     echo -e "  ${BOLD}$1${NC}"
     echo -e "  $(skipped "Aktuell ($2) — kein Update nötig")"
 }
 
+# ── Hilfsfunktion: .deb laden + installieren (fehlertolerant) ────────────────
+install_deb() {  # $1=name  $2=url
+    local tmp="/tmp/${1,,}.deb"
+    if wget -q --show-progress -O "$tmp" "$2" && sudo apt install -y "$tmp"; then
+        rm -f "$tmp"
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
+}
+
 # =============================================================================
-# LACT
+# LACT (Flatpak- oder Nativ-Installation)
 # =============================================================================
 info "Prüfe LACT..."
 
-LACT_INSTALLED=$(dpkg_version "lact")
-LACT_LATEST_TAG=$(gh_latest "ilya-zlobintsev/LACT")
-LACT_LATEST="${LACT_LATEST_TAG#v}"
+LACT_FLATPAK_ID="io.github.ilya_zlobintsev.LACT"
 
-if grep -qi "ubuntu" /etc/os-release; then
-    LACT_SUFFIX="ubuntu-2404"
-else
-    LACT_SUFFIX="debian-13"
-fi
+if flatpak info "$LACT_FLATPAK_ID" &>/dev/null; then
+    # ── Flatpak-Installation (aktueller Stand auf Sid wg. libdisplay-info) ──
+    echo ""
+    echo -e "  ${BOLD}LACT${NC} (Flatpak)"
+    if flatpak update -y "$LACT_FLATPAK_ID" 2>/dev/null | grep -q "Nothing to do\|Nichts zu tun"; then
+        skipped "Aktuell ($(flatpak info "$LACT_FLATPAK_ID" 2>/dev/null | grep -i version | awk '{print $2}')) — kein Update nötig"
+    else
+        updated "LACT (Flatpak) aktualisiert bzw. geprüft"
+    fi
+elif [[ "$(dpkg_version lact)" != "nicht installiert" ]]; then
+    # ── Native .deb-Installation ─────────────────────────────────────────────
+    LACT_INSTALLED=$(dpkg_version "lact")
+    LACT_LATEST_TAG=$(gh_latest "ilya-zlobintsev/LACT")
+    LACT_LATEST="${LACT_LATEST_TAG#v}"
 
-LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/${LACT_LATEST_TAG}/lact-${LACT_LATEST}-0.amd64.${LACT_SUFFIX}.deb"
+    if grep -qi "ubuntu" /etc/os-release; then
+        LACT_SUFFIX="ubuntu-2404"
+    else
+        LACT_SUFFIX="debian-13"
+    fi
+    LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/${LACT_LATEST_TAG}/lact-${LACT_LATEST}-0.amd64.${LACT_SUFFIX}.deb"
 
-if [[ "$LACT_INSTALLED" == *"$LACT_LATEST"* ]]; then
-    up_to_date "LACT" "$LACT_INSTALLED"
-else
-    if ask_update "LACT" "$LACT_INSTALLED" "$LACT_LATEST"; then
+    if [[ -z "$LACT_LATEST" ]]; then
+        warn "LACT: GitHub-Version nicht ermittelbar — übersprungen."
+    elif [[ "$LACT_INSTALLED" == *"$LACT_LATEST"* ]]; then
+        up_to_date "LACT" "$LACT_INSTALLED"
+    elif ask_update "LACT" "$LACT_INSTALLED" "$LACT_LATEST"; then
         info "Lade LACT ${LACT_LATEST}..."
-        wget -q --show-progress -O /tmp/lact.deb "$LACT_URL"
-        apt install -y /tmp/lact.deb
-        rm /tmp/lact.deb
-        systemctl enable --now lactd 2>/dev/null || true
-        updated "LACT auf ${LACT_LATEST} aktualisiert"
+        if install_deb "lact" "$LACT_URL"; then
+            sudo systemctl enable --now lactd 2>/dev/null || true
+            updated "LACT auf ${LACT_LATEST} aktualisiert"
+        else
+            err "LACT-Update fehlgeschlagen (sid-Transition? -> Flatpak-Wechsel erwägen). Weiter mit den anderen Tools."
+        fi
     else
         skipped "LACT übersprungen"
     fi
+else
+    skipped "LACT nicht installiert — übersprungen."
 fi
 
 # =============================================================================
@@ -112,18 +142,19 @@ HEROIC_LATEST_TAG=$(gh_latest "Heroic-Games-Launcher/HeroicGamesLauncher")
 HEROIC_LATEST="${HEROIC_LATEST_TAG#v}"
 HEROIC_URL="https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/${HEROIC_LATEST_TAG}/Heroic-${HEROIC_LATEST}-linux-amd64.deb"
 
-if [[ "$HEROIC_INSTALLED" == *"$HEROIC_LATEST"* ]]; then
+if [[ -z "$HEROIC_LATEST" ]]; then
+    warn "Heroic: GitHub-Version nicht ermittelbar — übersprungen."
+elif [[ "$HEROIC_INSTALLED" == *"$HEROIC_LATEST"* ]]; then
     up_to_date "Heroic Games Launcher" "$HEROIC_INSTALLED"
-else
-    if ask_update "Heroic Games Launcher" "$HEROIC_INSTALLED" "$HEROIC_LATEST"; then
-        info "Lade Heroic ${HEROIC_LATEST}..."
-        wget -q --show-progress -O /tmp/heroic.deb "$HEROIC_URL"
-        apt install -y /tmp/heroic.deb
-        rm /tmp/heroic.deb
+elif ask_update "Heroic Games Launcher" "$HEROIC_INSTALLED" "$HEROIC_LATEST"; then
+    info "Lade Heroic ${HEROIC_LATEST}..."
+    if install_deb "heroic" "$HEROIC_URL"; then
         updated "Heroic auf ${HEROIC_LATEST} aktualisiert"
     else
-        skipped "Heroic übersprungen"
+        err "Heroic-Update fehlgeschlagen. Weiter mit den anderen Tools."
     fi
+else
+    skipped "Heroic übersprungen"
 fi
 
 # =============================================================================
@@ -136,18 +167,19 @@ FAUGUS_LATEST_TAG=$(gh_latest "Faugus/faugus-launcher")
 FAUGUS_LATEST="${FAUGUS_LATEST_TAG#v}"
 FAUGUS_URL="https://github.com/Faugus/faugus-launcher/releases/download/${FAUGUS_LATEST_TAG}/faugus-launcher_${FAUGUS_LATEST}-1_all.deb"
 
-if [[ "$FAUGUS_INSTALLED" == *"$FAUGUS_LATEST"* ]]; then
+if [[ -z "$FAUGUS_LATEST" ]]; then
+    warn "Faugus: GitHub-Version nicht ermittelbar — übersprungen."
+elif [[ "$FAUGUS_INSTALLED" == *"$FAUGUS_LATEST"* ]]; then
     up_to_date "Faugus Launcher" "$FAUGUS_INSTALLED"
-else
-    if ask_update "Faugus Launcher" "$FAUGUS_INSTALLED" "$FAUGUS_LATEST"; then
-        info "Lade Faugus ${FAUGUS_LATEST}..."
-        wget -q --show-progress -O /tmp/faugus.deb "$FAUGUS_URL"
-        apt install -y /tmp/faugus.deb
-        rm /tmp/faugus.deb
+elif ask_update "Faugus Launcher" "$FAUGUS_INSTALLED" "$FAUGUS_LATEST"; then
+    info "Lade Faugus ${FAUGUS_LATEST}..."
+    if install_deb "faugus" "$FAUGUS_URL"; then
         updated "Faugus auf ${FAUGUS_LATEST} aktualisiert"
     else
-        skipped "Faugus übersprungen"
+        err "Faugus-Update fehlgeschlagen. Weiter mit den anderen Tools."
     fi
+else
+    skipped "Faugus übersprungen"
 fi
 
 # =============================================================================
