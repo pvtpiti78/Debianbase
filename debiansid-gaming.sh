@@ -95,7 +95,7 @@ log "GRUB/os-prober eingerichtet — Stock-Sid-Kernel bleibt."
 info "Installiere minimales KDE Plasma (Wayland)..."
 $APT install \
   plasma-desktop \
-  plasma-workspace-wayland \
+  plasma-workspace \
   kwin-wayland \
   plasma-nm \
   plasma-pa \
@@ -107,7 +107,7 @@ $APT install \
   upower \
   udisks2 \
   kscreen \
-  kwalletmanager \
+  kwallet-pam \
   bluedevil \
   bluez \
   sddm \
@@ -117,7 +117,7 @@ $APT install \
   kate \
   kio-extras \
   ark \
-  spectacle \
+  kde-spectacle \
   kcalc \
   kde-cli-tools \
   xdg-desktop-portal-kde \
@@ -258,17 +258,17 @@ $APT install /tmp/chrome.deb && log "Chrome installiert (Updates via apt)." \
 # ============================================================================
 # Nicht in den Debian-Repos — offizieller Weg ist das .deb vom Release.
 # Wir nehmen dynamisch das neueste debian-XX-Build (laeuft auf sid).
-info "Installiere LACT (GitHub .deb)..."
-LACT_URL=$(curl -s "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
-  | grep -oP '"browser_download_url":\s*"\K[^"]*amd64\.debian-[0-9]+\.deb' \
-  | grep -v headless | sort -V | tail -n1)
-if [[ -n "${LACT_URL:-}" ]]; then
+info "Installiere LACT (latest release)..."
+LACT_LATEST=$(curl -fsSL "https://api.github.com/repos/ilya-zlobintsev/LACT/releases/latest" \
+    | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+if [[ -n "${LACT_LATEST:-}" ]]; then
+  LACT_URL="https://github.com/ilya-zlobintsev/LACT/releases/download/v${LACT_LATEST}/lact-${LACT_LATEST}-0.amd64.debian-13.deb"
   wget -qO /tmp/lact.deb "$LACT_URL" && $APT install /tmp/lact.deb \
-    && log "LACT installiert." || warn "LACT-Installation fehlgeschlagen."
+    && log "LACT ${LACT_LATEST} installiert." || warn "LACT-Installation fehlgeschlagen."
 else
-  warn "LACT-.deb nicht gefunden — manuell von github.com/ilya-zlobintsev/LACT/releases."
+  warn "LACT-Version nicht ermittelbar — manuell von github.com/ilya-zlobintsev/LACT/releases."
 fi
-sudo systemctl enable lactd 2>/dev/null || warn "lactd nach Reboot pruefen."
+sudo systemctl enable --now lactd 2>/dev/null || warn "lactd nach Reboot pruefen."
 # Dein Setting zur Erinnerung: -70 mV / -25% Powerlimit
 
 # ============================================================================
